@@ -1,166 +1,128 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'K8s & KubeVirt 學習筆記',
-  description: 'Kubernetes 核心概念、Networking、Security & RBAC、Helm & GitOps，以及 KubeVirt 虛擬機管理',
-  base: '/k8s-notes/',
+  title: 'CC Notes',
+  description: 'K8s × Rook × Ceph × KubeVirt 雲端原生學習筆記',
+  base: '/cc-notes/',
   lang: 'zh-TW',
 
   themeConfig: {
-    siteTitle: 'K8s & KubeVirt 學習筆記',
+    siteTitle: 'CC Notes',
 
     nav: [
       { text: '首頁', link: '/' },
-      {
-        text: 'Kubernetes',
-        items: [
-          { text: '第一章 核心架構', link: '/01-core-architecture/' },
-          { text: '第二章 Networking', link: '/02-networking/' },
-          { text: '第三章 Security & RBAC', link: '/03-security-rbac/' },
-          { text: '第四章 Helm & GitOps', link: '/04-helm-gitops/' },
-        ]
-      },
-      {
-        text: 'KubeVirt',
-        items: [
-          { text: '第一章 架構原理', link: '/kubevirt-01-architecture/' },
-          { text: '第二章 安裝與設定', link: '/kubevirt-02-installation/' },
-          { text: '第三章 虛擬機管理', link: '/kubevirt-03-virtual-machines/' },
-          { text: '第四章 Storage', link: '/kubevirt-04-storage/' },
-          { text: '第五章 Networking', link: '/kubevirt-05-networking/' },
-          { text: '第六章 Live Migration', link: '/kubevirt-06-live-migration/' },
-        ]
-      },
-      { text: 'GitHub', link: 'https://github.com/hcps52088/k8s-notes' },
-    ],
-
-    sidebar: [
+      { text: '🔗 整合架構', link: '/integration/' },
       {
         text: '🐳 Kubernetes',
         items: [
-          {
-            text: '第一章 核心架構',
-            collapsed: false,
-            items: [
-              { text: '架構概覽', link: '/01-core-architecture/' },
-            ]
-          },
-          {
-            text: '第二章 Networking',
-            collapsed: false,
-            items: [
-              { text: 'CNI、Service、Ingress', link: '/02-networking/' },
-            ]
-          },
-          {
-            text: '第三章 Security & RBAC',
-            collapsed: false,
-            items: [
-              { text: 'RBAC、Pod Security', link: '/03-security-rbac/' },
-            ]
-          },
-          {
-            text: '第四章 Helm & GitOps',
-            collapsed: false,
-            items: [
-              { text: 'Helm、ArgoCD、Flux', link: '/04-helm-gitops/' },
-            ]
-          },
+          { text: '核心架構', link: '/k8s-01-core-architecture/' },
+          { text: 'Networking', link: '/k8s-02-networking/' },
+          { text: 'Security & RBAC', link: '/k8s-03-security-rbac/' },
+          { text: 'Helm & GitOps', link: '/k8s-04-helm-gitops/' },
+        ]
+      },
+      {
+        text: '🦑 Ceph',
+        items: [
+          { text: '架構原理', link: '/ceph-01-architecture/' },
+          { text: '三種儲存類型', link: '/ceph-03-storage-types/' },
+        ]
+      },
+      {
+        text: '🪝 Rook',
+        items: [
+          { text: '架構概覽', link: '/rook-01-overview/' },
+          { text: '安裝與設定', link: '/rook-02-installation/' },
         ]
       },
       {
         text: '⚡ KubeVirt',
         items: [
-          {
-            text: '第一章 架構原理',
-            collapsed: false,
-            items: [
-              { text: '架構概覽', link: '/kubevirt-01-architecture/' },
-            ]
-          },
-          {
-            text: '第二章 安裝與設定',
-            collapsed: false,
-            items: [
-              { text: '安裝 KubeVirt', link: '/kubevirt-02-installation/' },
-            ]
-          },
-          {
-            text: '第三章 虛擬機管理',
-            collapsed: false,
-            items: [
-              { text: 'VM 與 VMI', link: '/kubevirt-03-virtual-machines/' },
-            ]
-          },
-          {
-            text: '第四章 Storage',
-            collapsed: false,
-            items: [
-              { text: 'Disk & Volume 類型', link: '/kubevirt-04-storage/' },
-            ]
-          },
-          {
-            text: '第五章 Networking',
-            collapsed: false,
-            items: [
-              { text: 'Interface & Network', link: '/kubevirt-05-networking/' },
-            ]
-          },
-          {
-            text: '第六章 Live Migration',
-            collapsed: false,
-            items: [
-              { text: 'Live Migration', link: '/kubevirt-06-live-migration/' },
-            ]
-          },
+          { text: '架構原理', link: '/kubevirt-01-architecture/' },
+          { text: '安裝與設定', link: '/kubevirt-02-installation/' },
+          { text: '虛擬機管理', link: '/kubevirt-03-virtual-machines/' },
+          { text: 'Storage', link: '/kubevirt-04-storage/' },
+          { text: 'Networking', link: '/kubevirt-05-networking/' },
+          { text: 'Live Migration', link: '/kubevirt-06-live-migration/' },
         ]
       },
     ],
 
-    search: {
-      provider: 'local'
-    },
+    sidebar: [
+      {
+        text: '🔗 整合架構',
+        items: [
+          { text: 'K8s + Rook + KubeVirt', link: '/integration/' },
+        ]
+      },
+      {
+        text: '🐳 Kubernetes',
+        collapsed: false,
+        items: [
+          { text: '核心架構', link: '/k8s-01-core-architecture/' },
+          { text: 'Networking', link: '/k8s-02-networking/' },
+          { text: 'Security & RBAC', link: '/k8s-03-security-rbac/' },
+          { text: 'Helm & GitOps', link: '/k8s-04-helm-gitops/' },
+        ]
+      },
+      {
+        text: '🦑 Ceph',
+        collapsed: false,
+        items: [
+          { text: '架構原理', link: '/ceph-01-architecture/' },
+          { text: '三種儲存類型', link: '/ceph-03-storage-types/' },
+        ]
+      },
+      {
+        text: '🪝 Rook',
+        collapsed: false,
+        items: [
+          { text: '架構概覽', link: '/rook-01-overview/' },
+          { text: '安裝與設定', link: '/rook-02-installation/' },
+        ]
+      },
+      {
+        text: '⚡ KubeVirt',
+        collapsed: false,
+        items: [
+          { text: '架構原理', link: '/kubevirt-01-architecture/' },
+          { text: '安裝與設定', link: '/kubevirt-02-installation/' },
+          { text: '虛擬機管理', link: '/kubevirt-03-virtual-machines/' },
+          { text: 'Storage', link: '/kubevirt-04-storage/' },
+          { text: 'Networking', link: '/kubevirt-05-networking/' },
+          { text: 'Live Migration', link: '/kubevirt-06-live-migration/' },
+        ]
+      },
+    ],
+
+    search: { provider: 'local' },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/hcps52088/k8s-notes' }
+      { icon: 'github', link: 'https://github.com/hcps52088/cc-notes' }
     ],
 
     footer: {
-      message: '基於 Kubernetes 與 KubeVirt 官方文件整理',
+      message: '基於 Kubernetes、Ceph、Rook、KubeVirt 官方文件整理',
       copyright: 'Copyright © 2026 hcps52088'
     },
 
     editLink: {
-      pattern: 'https://github.com/hcps52088/k8s-notes/edit/main/docs/:path',
+      pattern: 'https://github.com/hcps52088/cc-notes/edit/main/docs/:path',
       text: '在 GitHub 上編輯此頁'
     },
 
     lastUpdated: {
       text: '最後更新',
-      formatOptions: {
-        dateStyle: 'short',
-        timeStyle: 'short'
-      }
+      formatOptions: { dateStyle: 'short', timeStyle: 'short' }
     },
 
-    outline: {
-      label: '本頁目錄',
-      level: [2, 3]
-    },
-
-    docFooter: {
-      prev: '上一頁',
-      next: '下一頁'
-    },
-
+    outline: { label: '本頁目錄', level: [2, 3] },
+    docFooter: { prev: '上一頁', next: '下一頁' },
     returnToTopLabel: '回到頂部',
     sidebarMenuLabel: '選單',
     darkModeSwitchLabel: '深色模式',
   },
 
-  markdown: {
-    lineNumbers: true,
-  },
-
+  markdown: { lineNumbers: true },
   lastUpdated: true,
 })

@@ -2,40 +2,40 @@
 layout: home
 
 hero:
-  name: "K8s & KubeVirt"
-  text: "學習筆記"
-  tagline: 從有使用經驗出發，深入理解每個元件的設計思路
+  name: "CC Notes"
+  text: "雲端原生學習筆記"
+  tagline: K8s × Rook × Ceph × KubeVirt — 一套 API 統一管理容器與虛擬機
   actions:
     - theme: brand
-      text: K8s 核心架構
-      link: /01-core-architecture/
+      text: 整合架構總覽
+      link: /integration/
     - theme: alt
-      text: KubeVirt 架構
-      link: /kubevirt-01-architecture/
+      text: 從 K8s 開始
+      link: /k8s-01-core-architecture/
 
 features:
-  - icon: 🏗️
-    title: K8s 核心架構
-    details: Control Plane 元件職責、etcd、Reconciliation Loop，以及一個請求的完整旅程
-    link: /01-core-architecture/
-  - icon: 🌐
-    title: K8s Networking
-    details: CNI 原理、Service 四種類型、Ingress、CoreDNS、NetworkPolicy、eBPF/Cilium
-    link: /02-networking/
-  - icon: 🔒
-    title: K8s Security & RBAC
-    details: 認證三道關卡、ServiceAccount、RBAC、Pod Security、Secret 管理、Admission Control
-    link: /03-security-rbac/
-  - icon: 📦
-    title: K8s Helm & GitOps
-    details: Chart 結構、Values 設計、常用指令、ArgoCD、Flux、CI/CD 整合流程
-    link: /04-helm-gitops/
-  - icon: 💻
-    title: KubeVirt 架構原理
-    details: virt-api、virt-controller、virt-handler、virt-launcher 元件職責，VM 完整啟動流程
+  - icon: 🐳
+    title: Kubernetes
+    details: 核心架構、Networking、Security & RBAC、Helm & GitOps。理解每個元件的設計思路和 Reconciliation Loop。
+    link: /k8s-01-core-architecture/
+  - icon: 🦑
+    title: Ceph
+    details: 分散式儲存系統架構、CRUSH 演算法、MON / OSD / MGR 元件、RBD / CephFS / RGW 三種儲存類型。
+    link: /ceph-01-architecture/
+  - icon: 🪝
+    title: Rook
+    details: Ceph 的 Kubernetes Operator。用 YAML 部署和管理 Ceph Cluster，整合 CSI Driver 提供 StorageClass。
+    link: /rook-01-overview/
+  - icon: ⚡
+    title: KubeVirt
+    details: 在 Kubernetes 上直接跑 VM。架構原理、VM 管理、Storage、Networking、Live Migration。
     link: /kubevirt-01-architecture/
-  - icon: 🚀
-    title: KubeVirt 虛擬機管理
-    details: VM vs VMI、RunStrategy、InstanceType、Storage、Networking、Live Migration
-    link: /kubevirt-03-virtual-machines/
+  - icon: 🔗
+    title: 整合架構
+    details: K8s + Rook/Ceph + KubeVirt 的完整整合方案，從零部署到一個跑在 Ceph 儲存上的虛擬機。
+    link: /integration/
+  - icon: 📝
+    title: 隨堂測驗 & 實作
+    details: 每個章節都有測驗題幫你確認學習狀態，以及可以動手跑的實作範例。
+    link: /integration/
 ---
