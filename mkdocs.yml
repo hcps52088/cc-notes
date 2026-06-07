@@ -10,35 +10,42 @@ theme:
   name: material
   language: zh-TW
   palette:
-    - scheme: default
-      primary: teal
-      accent: cyan
-      toggle:
-        icon: material/brightness-7
-        name: 切換深色模式
-    - scheme: slate
-      primary: teal
-      accent: cyan
-      toggle:
-        icon: material/brightness-4
-        name: 切換淺色模式
+    scheme: slate
+    primary: amber
+    accent: orange
+  font:
+    text: Noto Sans TC
+    code: JetBrains Mono
   features:
     - navigation.tabs
     - navigation.sections
     - navigation.top
     - navigation.footer
+    - navigation.instant
+    - navigation.instant.progress
     - search.highlight
     - search.suggest
+    - search.share
     - content.code.copy
+    - content.code.annotate
     - toc.follow
+    - toc.integrate
 
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.inlinehilite
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
   - admonition
   - pymdownx.details
   - attr_list
@@ -46,6 +53,10 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+      title: 本頁目錄
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 nav:
   - 首頁: index.md
