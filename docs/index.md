@@ -1,19 +1,33 @@
-# K8s 學習筆記
+---
+layout: home
 
-這是一份系統化的 Kubernetes 學習筆記，從有實際使用經驗的角度出發，深入理解每個元件的設計思路。
+hero:
+  name: "Kubernetes"
+  text: "學習筆記"
+  tagline: 從有使用經驗出發，深入理解每個元件的設計思路
+  actions:
+    - theme: brand
+      text: 開始學習
+      link: /01-core-architecture/
+    - theme: alt
+      text: GitHub
+      link: https://github.com/hcps52088/k8s-notes
 
-## 學習路徑
-
-| 章節 | 主題 | 重點 |
-|------|------|------|
-| 第一章 | [核心架構](01-core-architecture/index.md) | Control Plane、etcd、Reconciliation Loop |
-| 第二章 | [Networking](02-networking/index.md) | CNI、Service、Ingress、DNS、NetworkPolicy |
-| 第三章 | [Security & RBAC](03-security-rbac/index.md) | ServiceAccount、RBAC、Pod Security |
-| 第四章 | [Helm & GitOps](04-helm-gitops/index.md) | Helm chart 設計、ArgoCD、Flux |
-
-## 每章結構
-
-1. **架構圖** — 視覺化元件關係
-2. **核心概念** — 每個元件的職責
-3. **設計思路** — 為什麼這樣設計
-4. **常見陷阱** — 實務上容易踩到的坑
+features:
+  - icon: 🏗️
+    title: 第一章 核心架構
+    details: Control Plane 各元件職責、etcd 的角色、Reconciliation Loop 設計思路，以及一個請求的完整旅程
+    link: /01-core-architecture/
+  - icon: 🌐
+    title: 第二章 Networking
+    details: CNI 原理、Service 四種類型、Ingress、CoreDNS、NetworkPolicy，以及 eBPF/Cilium 進階
+    link: /02-networking/
+  - icon: 🔒
+    title: 第三章 Security & RBAC
+    details: 認證三道關卡、ServiceAccount、RBAC 完整設計、Pod Security、Secret 管理、Admission Control
+    link: /03-security-rbac/
+  - icon: 📦
+    title: 第四章 Helm & GitOps
+    details: Chart 結構、Values 設計、常用指令、ArgoCD Application、Flux、CI/CD 整合流程
+    link: /04-helm-gitops/
+---

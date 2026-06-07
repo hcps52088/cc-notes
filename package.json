@@ -1,0 +1,29 @@
+{
+  "name": "k8s-notes",
+  "version": "1.0.0",
+  "description": "K8s 學習筆記",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hcps52088/k8s-notes.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/hcps52088/k8s-notes/issues"
+  },
+  "homepage": "https://github.com/hcps52088/k8s-notes#readme",
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}
