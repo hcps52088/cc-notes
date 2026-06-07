@@ -66,7 +66,7 @@ interfaces:
 !!! warning "bridge 模式的限制"
     - 和 Service Mesh（Istio、Linkerd）不相容
     - 在某些 CNI（如 Calico）上需要特殊設定
-    - 不支援 Live Migration（預設）
+    - **不支援 Live Migration**（bridge 模式根本上與 Live Migration 不相容）
 
 ### 3. SR-IOV（高效能直通）
 

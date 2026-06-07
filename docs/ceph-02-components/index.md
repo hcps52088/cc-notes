@@ -111,14 +111,14 @@ OSD 是 Ceph 實際**存放資料的地方**，每顆磁碟對應一個 OSD proc
 
 ### BlueStore（OSD 的儲存引擎）
 
-Ceph Nautilus 之後預設使用 **BlueStore**，直接管理原始 block device，不依賴作業系統 filesystem：
+從 Ceph Nautilus 開始預設使用 **BlueStore**，直接管理原始 block device，不依賴作業系統 filesystem。Ceph Reef（v18）之後已完全移除舊的 FileStore，**BlueStore 是唯一支援的儲存引擎**。
 
 ```
-傳統（Filestore）：
+舊版（Filestore，已棄用）：
 OSD → OS Filesystem (ext4/xfs) → Raw Disk
         ↑ 多一層，有額外開銷
 
-BlueStore：
+BlueStore（現行唯一引擎）：
 OSD → Raw Disk（直接操作）
         ↑ 更低延遲，支援 Checksum、壓縮、加密
 ```

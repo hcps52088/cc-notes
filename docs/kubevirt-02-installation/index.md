@@ -9,7 +9,7 @@
 | CPU | 支援 Intel VT-x 或 AMD-V（硬體虛擬化） |
 | OS | Linux，已載入 `kvm` 和 `vhost_net` kernel modules |
 | Container Runtime | containerd 或 CRI-O |
-| k8s 版本 | 最近三個版本（目前 1.28+） |
+| k8s 版本 | 最近三個穩定版（目前 v1.31+） |
 | API Server 設定 | `--allow-privileged=true` |
 
 ### 確認 Node 支援硬體虛擬化

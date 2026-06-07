@@ -1,0 +1,266 @@
+/* ================================================================
+   CC Notes · Style B — Navy Blue Official
+   ================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* ── CSS Variables ───────────────────────────────────────────── */
+:root {
+  --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --vp-c-brand-1: #326ce5;
+  --vp-c-brand-2: #4d81f0;
+  --vp-c-brand-3: rgba(50, 108, 229, 0.16);
+  --vp-c-brand-soft: rgba(50, 108, 229, 0.14);
+  --cc-navy: #1a2744;
+  --cc-navy-mid: #243460;
+  --cc-navy-deep: #1e3a8a;
+  --vp-home-hero-name-color: #ffffff;
+  --vp-home-hero-name-background: none;
+  --vp-home-hero-text-color: #93c5fd;
+  --vp-home-hero-tagline-color: rgba(255, 255, 255, 0.58);
+}
+
+/* ── Nav: always dark navy ───────────────────────────────────── */
+.VPNav {
+  background-color: var(--cc-navy) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.VPNavBar {
+  background-color: var(--cc-navy) !important;
+  border-bottom: none !important;
+}
+.VPNavBarTitle .title {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+.VPNavBarMenu .VPNavBarMenuLink,
+.VPNavBarMenu .VPNavBarMenuGroup > .button {
+  color: rgba(255, 255, 255, 0.65) !important;
+  font-size: 0.825rem;
+}
+.VPNavBarMenu .VPNavBarMenuLink:hover,
+.VPNavBarMenu .VPNavBarMenuGroup > .button:hover,
+.VPNavBarMenu .VPNavBarMenuLink.active {
+  color: rgba(255, 255, 255, 0.95) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+.VPNavBarHamburger .bar {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+}
+.VPNavBarSocialLinks .VPSocialLink {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+.VPNavBarSocialLinks .VPSocialLink:hover {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+/* Appearance (dark mode) toggle */
+.VPNavBarAppearance .VPSwitch {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.VPNavBarAppearance .icon {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* ── Hero: dark navy gradient ────────────────────────────────── */
+.VPHome .VPHero {
+  background: linear-gradient(150deg, var(--cc-navy) 0%, var(--cc-navy-mid) 55%, var(--cc-navy-deep) 100%);
+  position: relative;
+  overflow: hidden;
+}
+.VPHome .VPHero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+
+/* Override the gradient text effect → solid white */
+.VPHero .name {
+  color: #ffffff !important;
+  background: none !important;
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+}
+.VPHero .text {
+  color: #93c5fd !important;
+}
+.VPHero .tagline {
+  color: rgba(255, 255, 255, 0.55) !important;
+  font-family: var(--vp-font-family-mono) !important;
+  font-size: 0.9rem !important;
+  letter-spacing: -0.01em !important;
+}
+
+/* Hero action buttons */
+.VPHero .VPButton.brand {
+  background-color: #326ce5 !important;
+  border-color: #326ce5 !important;
+  color: #ffffff !important;
+}
+.VPHero .VPButton.brand:hover {
+  background-color: #4d81f0 !important;
+  border-color: #4d81f0 !important;
+}
+.VPHero .VPButton.alt {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+.VPHero .VPButton.alt:hover {
+  background-color: rgba(255, 255, 255, 0.18) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* ── Hero badge (slot: home-hero-info-before) ────────────────── */
+.cc-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  color: #93c5fd;
+  background: rgba(50, 108, 229, 0.18);
+  border: 1px solid rgba(50, 108, 229, 0.35);
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  margin-bottom: 1.25rem;
+}
+.cc-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* ── Stats bar (slot: home-features-before) ──────────────────── */
+.cc-stats-bar {
+  background: var(--vp-c-bg-soft);
+  border-top: 1px solid var(--vp-c-divider);
+  border-bottom: 1px solid var(--vp-c-divider);
+  padding: 0.875rem 1.5rem;
+}
+.cc-stats-inner {
+  max-width: 1152px;
+  margin: 0 auto;
+  display: flex;
+  gap: 2.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.cc-stat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--vp-c-text-2);
+}
+.cc-stat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  flex-shrink: 0;
+  display: inline-block;
+}
+.cc-stat strong {
+  color: var(--vp-c-text-1);
+  font-weight: 600;
+}
+
+/* ── Feature cards ───────────────────────────────────────────── */
+.VPFeatures .VPFeature {
+  border: 1px solid var(--vp-c-divider) !important;
+  border-radius: 8px !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
+}
+.VPFeatures .VPFeature:hover {
+  border-color: #326ce5 !important;
+  box-shadow: 0 0 0 3px rgba(50, 108, 229, 0.08) !important;
+}
+.VPFeatures .VPFeature .title {
+  font-size: 0.9375rem !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.02em !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.4rem !important;
+  flex-wrap: wrap !important;
+}
+.VPFeatures .VPFeature .details {
+  font-size: 0.8125rem !important;
+  line-height: 1.65 !important;
+  color: var(--vp-c-text-2) !important;
+  margin-top: 0.375rem !important;
+}
+.VPFeatures .VPFeature .link-text,
+.VPFeatures .VPFeature .link-text .link {
+  color: #326ce5 !important;
+  font-weight: 500 !important;
+  font-size: 0.8125rem !important;
+}
+.VPFeatures .VPFeature .icon {
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+.VPFeatures .VPFeature .icon svg {
+  width: 40px !important;
+  height: 40px !important;
+  display: block !important;
+}
+
+/* ── Feature badges ──────────────────────────────────────────── */
+.f-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  font-family: var(--vp-font-family-mono);
+  line-height: 1.5;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+.f-badge.stable {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+.f-badge.advanced {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.dark .f-badge.stable {
+  background: rgba(22, 101, 52, 0.3);
+  color: #86efac;
+  border-color: rgba(134, 239, 172, 0.2);
+}
+.dark .f-badge.advanced {
+  background: rgba(120, 53, 15, 0.3);
+  color: #fcd34d;
+  border-color: rgba(252, 211, 77, 0.2);
+}
+
+/* ── Sidebar & content accent ────────────────────────────────── */
+.VPSidebarItem.is-active > .item .indicator {
+  background-color: #326ce5 !important;
+}
+.VPDocFooter .prev-link,
+.VPDocFooter .next-link {
+  color: #326ce5 !important;
+}
+a.link:hover {
+  color: #326ce5 !important;
+}

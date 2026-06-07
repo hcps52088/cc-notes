@@ -31,10 +31,10 @@ Live Migration 讓正在執行的 VM 在**不停機**的情況下，從一個 No
 | 網路介面 | 不能用 bridge 模式的 Pod Network（masquerade 或 SR-IOV 可以） |
 | Port 開放 | virt-launcher Pod 需要開放 49152 和 49153 port |
 | 可遷移的 Node | cluster 至少要有 2 個可調度的 Node |
-| Feature Gate | 需要 `LiveMigration` feature gate 開啟 |
+| Feature Gate | KubeVirt v0.56+ / v1.x 已**預設啟用** `LiveMigration`，舊版才需要手動開啟 |
 
 ```bash
-# 確認 Live Migration feature gate 是否開啟
+# 確認 feature gate 狀態（v1.x 預設已啟用，無需額外設定）
 kubectl get kubevirt kubevirt -n kubevirt -o jsonpath='{.spec.configuration.developerConfiguration.featureGates}'
 ```
 
