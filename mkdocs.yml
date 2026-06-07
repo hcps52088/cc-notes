@@ -11,14 +11,14 @@ theme:
   language: zh-TW
   palette:
     - scheme: default
-      primary: indigo
-      accent: indigo
+      primary: teal
+      accent: cyan
       toggle:
         icon: material/brightness-7
         name: 切換深色模式
     - scheme: slate
-      primary: indigo
-      accent: indigo
+      primary: teal
+      accent: cyan
       toggle:
         icon: material/brightness-4
         name: 切換淺色模式
@@ -26,9 +26,11 @@ theme:
     - navigation.tabs
     - navigation.sections
     - navigation.top
+    - navigation.footer
     - search.highlight
     - search.suggest
     - content.code.copy
+    - toc.follow
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -42,10 +44,12 @@ markdown_extensions:
   - attr_list
   - md_in_html
   - tables
+  - toc:
+      permalink: true
 
 nav:
   - 首頁: index.md
-  - 核心架構: 01-core-architecture/index.md
-  - Networking: coming-soon.md
-  - Security & RBAC: coming-soon.md
-  - Helm & GitOps: coming-soon.md
+  - 第一章 核心架構: 01-core-architecture/index.md
+  - 第二章 Networking: 02-networking/index.md
+  - 第三章 Security & RBAC: 03-security-rbac/index.md
+  - 第四章 Helm & GitOps: 04-helm-gitops/index.md

@@ -4,16 +4,14 @@
 
 ## 學習路徑
 
-| 章節 | 主題 | 狀態 |
+| 章節 | 主題 | 重點 |
 |------|------|------|
-| 第一章 | [核心架構](01-core-architecture/index.md) | ✅ 進行中 |
-| 第二章 | Networking | 🔜 待更新 |
-| 第三章 | Security & RBAC | 🔜 待更新 |
-| 第四章 | Helm & GitOps | 🔜 待更新 |
+| 第一章 | [核心架構](01-core-architecture/index.md) | Control Plane、etcd、Reconciliation Loop |
+| 第二章 | [Networking](02-networking/index.md) | CNI、Service、Ingress、DNS、NetworkPolicy |
+| 第三章 | [Security & RBAC](03-security-rbac/index.md) | ServiceAccount、RBAC、Pod Security |
+| 第四章 | [Helm & GitOps](04-helm-gitops/index.md) | Helm chart 設計、ArgoCD、Flux |
 
-## 學習重點
-
-每個主題都用以下結構展開：
+## 每章結構
 
 1. **架構圖** — 視覺化元件關係
 2. **核心概念** — 每個元件的職責
