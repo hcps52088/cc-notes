@@ -25,6 +25,7 @@ export default defineConfig({
         text: '🦑 Ceph',
         items: [
           { text: '架構原理', link: '/ceph-01-architecture/' },
+          { text: '核心元件深入解析', link: '/ceph-02-components/' },
           { text: '三種儲存類型', link: '/ceph-03-storage-types/' },
         ]
       },
@@ -70,6 +71,7 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: '架構原理', link: '/ceph-01-architecture/' },
+          { text: '核心元件深入解析', link: '/ceph-02-components/' },
           { text: '三種儲存類型', link: '/ceph-03-storage-types/' },
         ]
       },
