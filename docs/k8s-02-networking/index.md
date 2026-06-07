@@ -444,3 +444,92 @@ spec:
     ipvs:
       scheduler: "rr"   # round-robin
     ```
+
+---
+
+## 隨堂測驗 {#quiz}
+
+::: details 測驗 1：ClusterIP、NodePort、LoadBalancer 三種 Service type 的使用場景？
+**答案：**
+
+| Type | 存取範圍 | 使用場景 |
+|------|---------|---------|
+| `ClusterIP` | Cluster 內部 | 微服務間通訊（DB、internal API） |
+| `NodePort` | 透過 Node IP + Port | 測試環境、沒有 LB 的 on-prem |
+| `LoadBalancer` | 外部 IP（雲端 LB） | 生產環境對外服務 |
+
+**Ingress 不是 Service type**，它是一個 L7 Router（HTTP/HTTPS），把多個服務統一在一個入口，用 path/host 分流，只需要一個 LoadBalancer Service。
+:::
+
+::: details 測驗 2：Pod-to-Pod 通訊和 Service 通訊的底層機制有什麼不同？
+**答案：**
+
+**Pod-to-Pod 直接通訊**（無 NAT）：
+- 由 CNI plugin（Calico/Cilium）負責
+- 每個 Pod 有唯一 IP，路由規則讓不同 Node 上的 Pod 直接互通
+- 不經過 kube-proxy
+
+**Service 通訊（ClusterIP）**：
+- 由 kube-proxy 負責（iptables 或 IPVS）
+- 當 Pod 連 Service IP:Port，iptables 規則做 DNAT 轉發到其中一個 backend Pod
+- Service IP 是虛擬 IP（不真實存在於網卡），只存在 iptables 規則中
+
+**NetworkPolicy** 是在 CNI 層控制的（不是 kube-proxy），規定哪些 Pod 可以連哪些 Pod。
+:::
+
+::: details 測驗 3：CoreDNS 如何解析 Service 名稱？`my-svc.my-ns.svc.cluster.local` 各部分代表什麼？
+**答案：**
+
+格式：`<service-name>.<namespace>.svc.<cluster-domain>`
+
+- `my-svc`：Service 名稱
+- `my-ns`：Namespace
+- `svc`：固定字，代表這是 Service 類型的資源
+- `cluster.local`：Cluster domain（預設值，可以改）
+
+**簡短形式可用的條件**：
+- 同 Namespace：直接用 `my-svc`
+- 跨 Namespace：需要 `my-svc.my-ns`（CoreDNS 的 search domain 補全）
+
+CoreDNS 根據 API Server 動態更新 DNS 記錄，Pod 的 `/etc/resolv.conf` 指向 CoreDNS 的 ClusterIP。
+:::
+
+---
+
+## 實作：網路排障
+
+```bash
+# === 測試 Service DNS 解析 ===
+kubectl run dns-test --image=busybox --rm -it -- nslookup kubernetes.default
+# 應該解析到 API Server 的 ClusterIP
+
+# === 測試 Service 連通性 ===
+kubectl run curl-test --image=curlimages/curl --rm -it -- \
+  curl -s http://my-service.my-namespace.svc.cluster.local
+
+# === 查看 Service Endpoints ===
+kubectl get endpoints my-service
+# 確認 backend Pod IP 有進去
+
+# === 查看 iptables 規則（kube-proxy iptables 模式）===
+iptables -t nat -L KUBE-SERVICES | grep my-service
+iptables -t nat -L KUBE-SVC-xxxx   # 查看 Service 的 DNAT 規則
+
+# === 查看 NetworkPolicy ===
+kubectl get networkpolicy --all-namespaces
+kubectl describe networkpolicy my-policy
+
+# === 測試 Pod 間連通性（有 NetworkPolicy 時）===
+kubectl exec -it pod-a -- wget -qO- --timeout=3 http://pod-b-ip:8080
+# 若超時 = NetworkPolicy 擋住了
+
+# === 查看 Ingress ===
+kubectl get ingress --all-namespaces
+kubectl describe ingress my-ingress
+kubectl -n ingress-nginx get svc   # 查看 Ingress Controller 的外部 IP
+
+# === 模擬 kube-proxy 失效排查 ===
+# Service 不通但 Pod 直連 IP 可以 → 通常是 kube-proxy 問題
+# 查看 kube-proxy log
+kubectl -n kube-system logs -l k8s-app=kube-proxy --tail=50
+```

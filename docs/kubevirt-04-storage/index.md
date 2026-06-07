@@ -312,3 +312,163 @@ virtctl removevolume my-vm --volume-name=extra-disk
 
 !!! info "disk image 格式支援"
     KubeVirt / CDI 支援 qcow2、raw、vmdk、vhd / vhdx、iso 等格式，import 時 CDI 會自動轉換成 raw 或 qcow2。
+
+---
+
+## 隨堂測驗 {#quiz}
+
+::: details 測驗 1：containerDisk 和 DataVolume 最大的差別是什麼？什麼時候用哪個？
+**答案：**
+
+| | containerDisk | DataVolume |
+|--|-------------|-----------|
+| 持久化 | **否**（Pod 重啟資料消失） | **是**（資料存在 Ceph/PVC） |
+| 啟動速度 | 快（直接掛 container image） | 慢（需要 import） |
+| 適用場景 | 開發測試、唯讀 rootfs | 生產環境 VM |
+| 需要 CDI | 否 | **是** |
+
+**選擇原則：**
+- 測試 KubeVirt 功能 → containerDisk（快速、不留資料）
+- 生產 VM → DataVolume（持久化、有備份可能性）
+- Stateless 服務跑在 VM 上 → containerDisk（每次 fresh state）
+:::
+
+::: details 測驗 2：DataVolume 的 import 流程是什麼？為什麼 VM 要等 DataVolume Succeeded 才能啟動？
+**答案：**
+
+import 流程：
+1. CDI 看到 DataVolume CR
+2. 建立一個 PVC（空的）
+3. 建立一個 importer Pod，從 source（URL / registry / PVC）下載並轉換 image
+4. importer Pod 把 image 寫入 PVC
+5. DataVolume 狀態變 `Succeeded`，刪除 importer Pod
+6. VM 可以啟動，PVC 已有完整的 OS image
+
+**為什麼要等 Succeeded？**
+
+VM 的 QEMU 直接把 PVC 當 block device 啟動。如果 import 沒完成（PVC 只有部分資料），VM 啟動後會讀到損壞的 disk，輕則報錯，重則 Guest OS panic。
+
+KubeVirt 會把有 `WaitForFirstConsumer` DataVolume 的 VM 保持在 `WaitingForVolumeBinding` 狀態，等 DataVolume Succeeded 才建立 virt-launcher Pod。
+:::
+
+::: details 測驗 3：為什麼 KubeVirt VM 的 PVC 要用 `volumeMode: Block` 而不是 `Filesystem`？
+**答案：**
+
+- **Filesystem mode**：k8s CSI 把 PVC 格式化成 ext4/xfs 後 mount 進 Pod，Pod 看到的是目錄
+- **Block mode**：直接把 raw block device 暴露給 Pod，Pod 看到的是 `/dev/xxx`
+
+QEMU 需要 raw block device 來模擬虛擬磁碟，原因：
+1. QEMU 要自己管理磁碟格式（qcow2 / raw）和 partition table
+2. 如果 CSI 先格式化成 ext4，QEMU 還要在 ext4 裡面建一個虛擬磁碟檔案，中間多了一層，效能差
+3. Block mode 讓 QEMU 直接操作 block device，等同於實體機插了一塊硬碟進去
+
+**重要**：`volumeMode: Block` 的 PVC 必須在 VM spec 裡用 `disk.bus: virtio`（或其他 bus），不能像普通 Pod 那樣直接 mount 目錄。
+:::
+
+---
+
+## 實作：VM 存儲操作
+
+```bash
+# === 確認 CDI 安裝 ===
+kubectl -n cdi get pods
+# cdi-operator、cdi-apiserver、cdi-controller、cdi-uploadproxy
+
+# === 建立有 DataVolume 的 VM（從 Fedora container image import）===
+kubectl apply -f - <<'EOF'
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: fedora-vm
+spec:
+  runStrategy: RerunOnFailure
+  dataVolumeTemplates:
+    - metadata:
+        name: fedora-vm-disk
+      spec:
+        storage:
+          storageClassName: rook-ceph-block
+          accessModes: [ReadWriteOnce]
+          volumeMode: Block
+          resources:
+            requests:
+              storage: 10Gi
+        source:
+          registry:
+            url: docker://quay.io/containerdisks/fedora:40
+  template:
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        memory:
+          guest: 2Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: fedora-vm-disk
+EOF
+
+# === 監控 DataVolume import 進度 ===
+kubectl get datavolume fedora-vm-disk -w
+# PHASE: ImportScheduled → ImportInProgress → Succeeded
+
+# === 確認 PVC 建立 ===
+kubectl get pvc fedora-vm-disk
+# STORAGECLASS: rook-ceph-block, VOLUME MODE: Block
+
+# === 確認 import Pod ===
+kubectl get pods | grep importer
+# CDI 的 importer pod，import 完成後自動消失
+
+# === 等 VM 跑起來後 snapshot ===
+kubectl apply -f - <<'EOF'
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: fedora-vm-snapshot
+spec:
+  volumeSnapshotClassName: csi-rbdplugin-snapclass
+  source:
+    persistentVolumeClaimName: fedora-vm-disk
+EOF
+
+kubectl get volumesnapshot fedora-vm-snapshot
+# READYTOUSE: true
+
+# === 從 snapshot clone 一個新 VM ===
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fedora-vm-clone
+spec:
+  storageClassName: rook-ceph-block
+  dataSource:
+    name: fedora-vm-snapshot
+    kind: VolumeSnapshot
+    apiGroup: snapshot.storage.k8s.io
+  accessModes: [ReadWriteOnce]
+  volumeMode: Block
+  resources:
+    requests:
+      storage: 10Gi
+EOF
+# 新 PVC 可以直接給另一個 VM 使用（Golden Image 模式）
+
+# === 清理 ===
+kubectl delete vm fedora-vm
+kubectl delete pvc fedora-vm-disk fedora-vm-clone
+kubectl delete volumesnapshot fedora-vm-snapshot
+```

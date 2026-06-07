@@ -406,3 +406,143 @@ CI Pipeline（GitHub Actions / GitLab CI）
 
 !!! info "App of Apps 模式"
     ArgoCD 可以用一個 Application 管理其他所有 Application（App of Apps pattern），這樣新增服務只要在 Git 加一個 YAML，ArgoCD 就自動部署。
+
+---
+
+## 隨堂測驗 {#quiz}
+
+::: details 測驗 1：Helm Chart 和 kubectl apply 直接套用 YAML 的差別？什麼情況下用 Helm？
+**答案：**
+
+| | kubectl apply | Helm Chart |
+|--|--------------|-----------|
+| 版本管理 | 無（需要 git） | Helm release 版本 |
+| 回滾 | 需要 git revert | `helm rollback` |
+| 參數化 | 手動改 YAML | `values.yaml` + template |
+| 相依管理 | 手動 | `Chart.yaml` dependencies |
+| 現狀追蹤 | 不追蹤（kubectl apply 只記憶上次的） | `helm ls` 顯示所有 release 狀態 |
+
+**用 Helm 的時機：**
+- 安裝有很多設定選項的 third-party 工具（Prometheus、ingress-nginx、cert-manager）
+- 需要在多個環境（dev/staging/prod）用不同設定部署同一套應用
+
+**不用 Helm 的時機：**
+- 簡單的自建應用（直接 YAML + GitOps 更清楚）
+- Helm template 太複雜，失去了「YAML 即文件」的可讀性
+:::
+
+::: details 測驗 2：GitOps 的核心原則是什麼？ArgoCD 和 Flux 的主要差別？
+**答案：**
+
+**GitOps 核心原則**：
+1. **Git as single source of truth**：所有設定都在 Git，沒有手動的 `kubectl apply`
+2. **Declarative**：描述終態，不是操作步驟
+3. **Automated reconciliation**：工具自動把 cluster 狀態同步到 Git 的狀態
+
+**ArgoCD vs Flux：**
+
+| | ArgoCD | Flux |
+|--|-------|------|
+| UI | 強大的 Web UI | 無 UI（需要額外安裝） |
+| 操作方式 | Web / argocd CLI | kubectl / flux CLI |
+| 架構 | 集中式（獨立 server） | 分散式（每個 cluster 自己 pull） |
+| Multi-cluster | 支援（從單一 UI 管多個 cluster） | 每個 cluster 裝自己的 Flux |
+| 適合場景 | 有 Ops 團隊需要 visibility | 小型團隊、開發者自助 |
+:::
+
+::: details 測驗 3：`helm upgrade --install` 和 `helm upgrade` 的差別？`--atomic` 旗標的作用？
+**答案：**
+
+- `helm upgrade`：更新已有的 release，若 release 不存在就失敗
+- `helm upgrade --install`：有 release 就更新，沒有就新安裝（CI/CD 常用，不需要判斷是不是第一次）
+
+**`--atomic` 的作用：**
+
+若升級過程中有 Pod 沒有在 timeout 內 Ready，自動執行 `helm rollback` 回到上一個版本，避免 cluster 停在壞掉的中間狀態。
+
+```bash
+helm upgrade my-app ./my-chart --atomic --timeout 5m
+# 5 分鐘內 Pod 沒有 Ready → 自動 rollback
+```
+
+不加 `--atomic` 的問題：upgrade 卡住時，舊 Pod 已被刪除，新 Pod 啟動失敗，Service 無法服務，需要手動 rollback。
+:::
+
+---
+
+## 實作：Helm 和 ArgoCD 基本操作
+
+```bash
+# === Helm 基本操作 ===
+# 新增 repo
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+
+# 搜尋 chart
+helm search repo ingress-nginx
+
+# 查看 default values
+helm show values ingress-nginx/ingress-nginx
+
+# 安裝（用自訂 values）
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace \
+  --set controller.replicaCount=2 \
+  --set controller.service.type=LoadBalancer
+
+# 查看 release 狀態
+helm ls -n ingress-nginx
+helm status ingress-nginx -n ingress-nginx
+
+# 升級（改設定）
+helm upgrade ingress-nginx ingress-nginx/ingress-nginx \
+  -n ingress-nginx \
+  --set controller.replicaCount=3 \
+  --atomic --timeout 5m
+
+# 回滾
+helm rollback ingress-nginx 1 -n ingress-nginx   # 回到版本 1
+
+# 查看升級歷史
+helm history ingress-nginx -n ingress-nginx
+
+# 解除安裝
+helm uninstall ingress-nginx -n ingress-nginx
+
+# === ArgoCD 基本操作 ===
+# 安裝 ArgoCD
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# 等待 ArgoCD 就緒
+kubectl -n argocd wait --for=condition=available deployment/argocd-server --timeout=300s
+
+# 取得初始 admin 密碼
+kubectl -n argocd get secret argocd-initial-admin-secret \
+  -o jsonpath='{.data.password}' | base64 -d
+
+# port-forward 存取 UI
+kubectl port-forward svc/argocd-server -n argocd 8080:443 &
+# 瀏覽器開 https://localhost:8080
+
+# 登入 CLI
+argocd login localhost:8080 --username admin --insecure
+
+# 建立 Application（從 Git 同步）
+argocd app create my-app \
+  --repo https://github.com/your-org/your-app.git \
+  --path k8s/ \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace default \
+  --sync-policy automated \
+  --auto-prune \
+  --self-heal
+
+# 查看同步狀態
+argocd app list
+argocd app get my-app
+argocd app sync my-app      # 手動觸發同步
+argocd app history my-app   # 查看部署歷史
+argocd app rollback my-app  # 回滾
+```

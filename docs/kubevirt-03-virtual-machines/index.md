@@ -377,3 +377,169 @@ EOF
 
 !!! info "VM 的 IP 是固定的嗎？"
     不是。VMI 背後是一個 Pod，Pod 的 IP 每次重建都會變。如果需要固定存取點，應該建立一個 Service（selector 指向 VMI 的 label），透過 Service IP 存取 VM。
+
+---
+
+## 隨堂測驗 {#quiz}
+
+::: details 測驗 1：VM 和 VMI 的差別，以及為什麼要區分這兩個物件？
+**答案：**
+
+- **VM**（VirtualMachine）：你的「意圖聲明」，包含 VM 的設定和生命週期策略（runStrategy）。持久存在，不會因為 VM 關機就消失。類比 Deployment。
+- **VMI**（VirtualMachineInstance）：實際跑著的 VM，是暫時的。VM 關機 → VMI 刪除。類比 Pod。
+
+**為什麼要區分？**
+
+VM 刪掉 VMI 後，根據 `runStrategy`：
+- `Always`：自動重建 VMI（類似 Deployment 自動重建 Pod）
+- `RerunOnFailure`：crash 才重建，正常關機不重建
+- `Manual`：不自動重建
+
+這讓你可以在不刪 VM 定義的情況下，控制 VM 的生命週期（關機、維護、升級）。
+:::
+
+::: details 測驗 2：RunStrategy `Always` 和 `RerunOnFailure` 最大的差別是什麼？
+**答案：**
+
+| 情況 | `Always` | `RerunOnFailure` |
+|------|---------|-----------------|
+| Guest OS 正常 shutdown | 重建 | **不重建** |
+| VM crash（QEMU panic） | 重建 | 重建 |
+| `virtctl stop` 優雅停止 | 重建 | **不重建** |
+
+`Always` 適合：必須 24/7 跑著的服務（等同 `restartPolicy: Always`）
+`RerunOnFailure` 適合：允許手動關機，但崩潰要自動復原（最常用）
+
+踩坑常見點：用 `Always` 的 VM，在 Guest OS 裡執行 `shutdown -h now`，VM 馬上又被重建，以為重啟失敗了。應改用 `virtctl stop`（發 ACPI 信號）後，再根據 runStrategy 決定是否重建。
+:::
+
+::: details 測驗 3：Instancetype 和直接在 VM spec 裡設定 CPU/Memory 有什麼差別？
+**答案：**
+
+- **直接在 spec 設定**：每次建 VM 都要寫 CPU/Memory，難以標準化
+- **Instancetype**：把 CPU/Memory 規格抽成一個可重用的模板，VM 只引用模板名稱
+
+類比：
+- `VirtualMachineInstancetype` ≈ AWS EC2 的 instance type（t3.medium、m5.large）
+- `VirtualMachinePreference` ≈ 預設的 disk bus、network model（virtio vs e1000）
+
+好處：平台團隊預先定義標準規格（small/medium/large），開發者選規格建 VM，不需要知道底層細節。也方便統一升級規格（改 Instancetype，所有引用的 VM 下次重啟就生效）。
+:::
+
+---
+
+## 實作：完整 VM 生命週期操作
+
+```bash
+# === 建立 VM（用 RunStrategy: RerunOnFailure）===
+kubectl apply -f - <<'EOF'
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: demo-vm
+spec:
+  runStrategy: RerunOnFailure
+  template:
+    metadata:
+      labels:
+        app: demo-vm
+    spec:
+      domain:
+        cpu:
+          cores: 2
+        memory:
+          guest: 1Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: emptydisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+          rng: {}   # 提供隨機數源（VM 裡跑 systemd 需要）
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: rootdisk
+          containerDisk:
+            image: quay.io/kubevirt/cirros-container-disk-demo
+        - name: emptydisk
+          emptyDisk:
+            capacity: 2Gi   # 臨時空磁碟（不持久化）
+EOF
+
+# === 啟動和狀態查詢 ===
+virtctl start demo-vm
+kubectl get vmi demo-vm -w             # 等待 Running
+kubectl describe vmi demo-vm           # 看完整狀態和 Events
+
+# === 進入 VM ===
+virtctl console demo-vm                # serial console（Ctrl+] 退出）
+virtctl vnc demo-vm                    # 圖形界面（需要 VNC client）
+
+# === Port forward SSH ===
+virtctl port-forward demo-vm 2222:22 &
+ssh -p 2222 cirros@localhost
+
+# === 暫停 / 恢復 ===
+virtctl pause demo-vm
+kubectl get vmi demo-vm                # PHASE: Paused
+virtctl unpause demo-vm
+
+# === 優雅停機和重啟 ===
+virtctl stop demo-vm                   # 發 ACPI 關機信號
+virtctl restart demo-vm                # 重啟（stop + start）
+
+# === 查看 VM 底層的 Pod ===
+kubectl get pods -l kubevirt.io/vm=demo-vm
+
+# === 刪除 VM（同時刪 VMI）===
+kubectl delete vm demo-vm
+
+# === 用 Instancetype 建 VM ===
+kubectl apply -f - <<'EOF'
+apiVersion: instancetype.kubevirt.io/v1beta1
+kind: VirtualMachineInstancetype
+metadata:
+  name: small
+spec:
+  cpu:
+    guest: 2
+  memory:
+    guest: 2Gi
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: typed-vm
+spec:
+  runStrategy: Manual
+  instancetype:
+    name: small
+    kind: VirtualMachineInstancetype
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+            - name: disk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: disk
+          containerDisk:
+            image: quay.io/kubevirt/cirros-container-disk-demo
+EOF
+kubectl delete vm typed-vm
+```

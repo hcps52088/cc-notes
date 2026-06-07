@@ -244,3 +244,104 @@ virtctl console testvm
 
 !!! info "生產環境建議版本固定"
     不要用 `stable.txt` 動態取版本號安裝，應該固定版本號，確保 Operator 和 CR 版本一致。Operator 升級要先升 Operator，等 `Available` 後再升 CR。
+
+---
+
+## 隨堂測驗 {#quiz}
+
+::: details 測驗 1：KubeVirt Operator 和 KubeVirt CR 的關係是什麼？為什麼要分開安裝？
+**答案：**
+
+- **Operator**（Deployment）：負責監控 `KubeVirt` CR，把它變成實際的 KubeVirt 元件（virt-api、virt-controller、virt-handler）。Operator 本身很輕量。
+- **KubeVirt CR**：你宣告「我要 KubeVirt，版本 X，功能 Y」，Operator 讀這個 CR 並部署對應的元件。
+
+這種 Operator Pattern 的好處：升級 KubeVirt 只需要改 CR 的 `spec.imageTag`，Operator 自動滾動升級所有元件，不需要手動操作每個 Pod。
+:::
+
+::: details 測驗 2：CDI（Containerized Data Importer）的作用是什麼？不安裝 CDI 可以跑 VM 嗎？
+**答案：**
+
+CDI 負責自動把 OS 映像（qcow2、raw、container image、HTTP URL）import 到 PVC，讓 VM 有開機磁碟。
+
+**不安裝 CDI，仍然可以跑 VM**，但限制：
+- 不能用 `DataVolume`（需要 CDI）
+- 可以用 `containerDisk`（直接從 container image 讀，不持久化）
+- 可以手動建好 PVC 再掛給 VM
+
+生產環境幾乎都需要 CDI，因為你不可能讓 VM 磁碟不持久化。
+:::
+
+::: details 測驗 3：`useEmulation: true` 是什麼意思？什麼時候需要它？
+**答案：**
+
+`useEmulation: true` 讓 KubeVirt 在沒有 `/dev/kvm` 的環境下，用純軟體模擬（QEMU TCG）來跑 VM。
+
+**需要的場景：**
+- 巢狀虛擬化（VM 裡面跑 k8s，再跑 KubeVirt）
+- CI/CD 環境的測試
+- 沒有支援 VT-x/AMD-V 的舊機器
+
+**代價：效能極差。** 純軟體模擬的 CPU 效能約是硬體虛擬化的 1/10 甚至更低。只用於測試，不用於生產環境。
+:::
+
+---
+
+## 實作：驗證 KubeVirt 安裝完整性
+
+```bash
+# === 確認 Operator ===
+kubectl -n kubevirt get deployment virt-operator
+# READY: 1/1
+
+# === 確認所有元件 ===
+kubectl -n kubevirt get pods
+# virt-api-xxx          Running
+# virt-controller-xxx   Running
+# virt-handler-xxx（每個 Node 一個）Running
+
+# === 確認 KubeVirt CR 狀態 ===
+kubectl get kubevirt -n kubevirt -o yaml | grep -A5 "status:"
+# phase: Deployed ← 必須是這個
+
+# === 確認 Node 有 KVM ===
+kubectl get nodes -o json | jq '.items[].status.allocatable | to_entries[] | select(.key | contains("kvm"))'
+# 應看到 "devices.kubevirt.io/kvm": "110"（或其他數字）
+
+# === 安裝 virtctl（本機操作 VM 的 CLI）===
+KUBEVIRT_VERSION=$(kubectl get kubevirt kubevirt -n kubevirt -o jsonpath='{.status.observedKubeVirtVersion}')
+curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${KUBEVIRT_VERSION}/virtctl-${KUBEVIRT_VERSION}-linux-amd64
+chmod +x virtctl && sudo mv virtctl /usr/local/bin/
+
+# === 快速測試：跑一個 containerDisk VM ===
+kubectl apply -f - <<'EOF'
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstance
+metadata:
+  name: testvmi
+spec:
+  domain:
+    devices:
+      disks:
+        - name: containerdisk
+          disk:
+            bus: virtio
+      interfaces:
+        - name: default
+          masquerade: {}
+    resources:
+      requests:
+        memory: 64Mi
+        cpu: "100m"
+  networks:
+    - name: default
+      pod: {}
+  volumes:
+    - name: containerdisk
+      containerDisk:
+        image: quay.io/kubevirt/cirros-container-disk-demo
+EOF
+
+kubectl get vmi testvmi -w   # 等到 Running
+virtctl console testvmi       # 進入 console（Ctrl+] 離開）
+kubectl delete vmi testvmi
+```

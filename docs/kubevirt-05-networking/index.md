@@ -248,3 +248,154 @@ devices:
 
 !!! info "SR-IOV 和 Live Migration"
     SR-IOV 在傳統認知中不支援 Live Migration（因為是硬體直通）。但 KubeVirt v1.8+ 實作了自動 hot-unplug SR-IOV 介面，Migration 時暫時切回軟體網路，Migration 完成後再 hot-plug 回來。
+
+---
+
+## 隨堂測驗 {#quiz}
+
+::: details 測驗 1：masquerade 模式和 bridge 模式最主要的差別是什麼？
+**答案：**
+
+| | masquerade | bridge |
+|--|-----------|--------|
+| VM 的 IP | 獨立 IP（10.0.2.2/24），透過 NAT 出去 | 使用 Pod IP（DHCP 獲得）|
+| 外部存取 | 必須透過 k8s Service | 可以直接用 VM IP（在 cluster 內） |
+| Live Migration | 支援 | **不支援**（預設） |
+| Service Mesh 相容 | 支援（Istio、Linkerd） | **不相容** |
+| 推薦場景 | 大多數情況 | 需要 L2 直連的特殊需求 |
+
+**核心差異**：masquerade 的 VM 和 Pod 用不同的 IP，透過 NAT 連接；bridge 的 VM 直接「借」Pod IP，在 L2 層面直連。
+:::
+
+::: details 測驗 2：為什麼 SR-IOV 傳統上不支援 Live Migration，而 KubeVirt v1.8+ 怎麼解決這個問題？
+**答案：**
+
+**傳統問題**：SR-IOV 把實體網卡的 Virtual Function（VF）直接 passthrough 給 VM，VF 是硬體資源，綁定在特定 Node。Migration 時 VM 要移到另一個 Node，但新 Node 上的 VF 和舊 VF 不是同一個硬體，無法「移過去」。
+
+**KubeVirt v1.8+ 的解法**：
+
+1. Migration 開始前，自動 **hot-unplug SR-IOV 介面**，VM 暫時改走軟體網路
+2. 執行正常的記憶體遷移到目標 Node
+3. Migration 完成後，在目標 Node **hot-plug 新的 SR-IOV VF**
+
+這個過程 Guest OS 內的網卡會短暫消失再出現，需要 Guest OS 支援熱插拔（現代 Linux 都支援）。
+:::
+
+::: details 測驗 3：如果 VM 要對外提供服務（HTTP），應該怎麼設定網路？
+**答案：**
+
+**推薦方式**（masquerade + Service）：
+
+1. VM 用 masquerade 模式（指定開放的 port）：
+```yaml
+interfaces:
+  - name: default
+    masquerade: {}
+    ports:
+      - port: 80
+      - port: 443
+```
+
+2. 建立 k8s Service 指向 VM（用 label selector）：
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-vm-svc
+spec:
+  selector:
+    kubevirt.io/vm: my-vm
+  type: LoadBalancer   # 或 ClusterIP + Ingress
+  ports:
+    - port: 80
+      targetPort: 80
+```
+
+好處：VM 遷移（Live Migration）後 Service IP 不變，client 連線不中斷。直接暴露 VM IP 的方式在 Migration 後 IP 可能改變。
+:::
+
+---
+
+## 實作：VM 網路設定
+
+```bash
+# === masquerade VM + Service 對外 ===
+kubectl apply -f - <<'EOF'
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: web-vm
+  labels:
+    app: web-vm
+spec:
+  runStrategy: RerunOnFailure
+  template:
+    metadata:
+      labels:
+        app: web-vm    # Service selector 會找這個 label
+    spec:
+      domain:
+        cpu:
+          cores: 1
+        memory:
+          guest: 1Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+              ports:
+                - name: http
+                  port: 80
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: rootdisk
+          containerDisk:
+            image: quay.io/kubevirt/cirros-container-disk-demo
+EOF
+
+# === 建立 Service ===
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-vm-svc
+spec:
+  selector:
+    app: web-vm    # 對應 VMI 的 label
+  type: NodePort
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+      nodePort: 30080
+EOF
+
+# === 確認連線 ===
+virtctl start web-vm
+kubectl get vmi web-vm -w   # 等 Running
+
+# 取 Node IP
+NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+curl http://$NODE_IP:30080   # 存取 VM 的 HTTP
+
+# === 用 virtctl port-forward（debug 用）===
+virtctl port-forward web-vm 8080:80 &
+curl http://localhost:8080
+
+# === 查看 VM 的網路介面（在 VM 內部）===
+virtctl console web-vm
+# 在 VM 裡：
+# ip addr show
+# ip route show
+# ping 8.8.8.8   # 測試外部連線（masquerade 模式下可以）
+
+# === 清理 ===
+kubectl delete vm web-vm
+kubectl delete svc web-vm-svc
+```

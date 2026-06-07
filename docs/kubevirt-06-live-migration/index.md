@@ -246,3 +246,151 @@ VMI migration state 欄位：
 
 !!! info "Migration 不影響 Service 連線"
     masquerade 模式的 VM 透過 k8s Service 存取，Migration 時 kube-proxy 規則更新指向新的 virt-launcher Pod，TCP 連線可能有短暫中斷（毫秒級），但新連線立刻可以建立。
+
+---
+
+## 隨堂測驗 {#quiz}
+
+::: details 測驗 1：Pre-copy 和 Post-copy 的主要風險分別是什麼？
+**答案：**
+
+**Pre-copy 的風險**：
+- 高 dirty rate（記憶體寫入速度 > 網路頻寬）時，migration 永遠追不上，無法完成
+- 解法：開啟 `allowAutoConverge`（自動限速 VM CPU 降低 dirty rate）
+
+**Post-copy 的風險**：
+- VM 在目標 Node 開始執行後，所需的記憶體頁面還在來源 Node
+- 若目標 Node **在傳輸過程中故障**，VM 資料直接丟失（不可逆）
+- 若來源 Node 故障，VM 拿不到需要的頁面，直接 crash
+
+**結論**：Pre-copy 失敗後 VM 還能在來源繼續跑（安全回退），Post-copy 一旦切換就沒有退路。預設應該用 Pre-copy，只在有嚴格切換時間要求時才考慮 Post-copy。
+:::
+
+::: details 測驗 2：為什麼 Live Migration 需要 RWX 的 PVC？RWO 為什麼不行？
+**答案：**
+
+Live Migration 的過程中，**來源 Node 和目標 Node 需要同時存取 VM 的磁碟**：
+
+```
+Pre-copy 最後階段：
+  來源 Node（VM 還在跑） ──讀寫 PVC──▶ Ceph RBD
+  目標 Node（接管準備中） ──讀寫 PVC──▶ Ceph RBD
+  （同時存取！）
+```
+
+`ReadWriteOnce`（RWO）的語意是：**同一時間只能有一個 Node mount**。如果目標 Node mount PVC 時，來源 Node 還持有 mount，就會衝突失敗（或 CSI 強制解除來源 Node 的 mount，VM 直接崩潰）。
+
+`ReadWriteMany`（RWX）允許多個 Node 同時 mount，所以可以。Ceph RBD 支援 RWX 需要 `mounter: rbd-nbd` 參數。
+:::
+
+::: details 測驗 3：`kubectl drain` 和手動觸發 VirtualMachineInstanceMigration 有什麼差別？
+**答案：**
+
+| | kubectl drain | 手動 VirtualMachineInstanceMigration |
+|--|--------------|----------------------------------|
+| 觸發對象 | Node 上**所有** VM 和 Pod | **指定一個** VMI |
+| 目標 Node | 由 Scheduler 決定 | 由 Scheduler 決定（無法指定） |
+| 使用場景 | Node 維護（全部搬走） | 手動平衡負載、測試遷移 |
+| Pod 的處理 | 正常 Pod 直接刪除重建 | 不影響其他 Pod |
+
+`kubectl drain` 時，KubeVirt 攔截 VM 相關 Pod 的驅逐請求，改成 Live Migration（不是直接刪 Pod），確保 VM 不停機。這需要 `KubevirtEvictionPolicy` 設定正確。
+:::
+
+---
+
+## 實作：完整 Live Migration 流程
+
+```bash
+# === 準備：確認 RWX StorageClass 存在 ===
+kubectl get sc | grep rwx
+# 若沒有，先建立（參考 Rook 章節）
+
+# === 建立支援 Live Migration 的 VM ===
+kubectl apply -f - <<'EOF'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: vm-migration-disk
+spec:
+  storageClassName: rook-ceph-block-rwx   # RWX StorageClass
+  accessModes: [ReadWriteMany]
+  volumeMode: Block
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: migratable-vm
+spec:
+  runStrategy: RerunOnFailure
+  template:
+    spec:
+      domain:
+        cpu:
+          cores: 1
+        memory:
+          guest: 512Mi
+        devices:
+          disks:
+            - name: disk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: default
+              masquerade: {}
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: disk
+          persistentVolumeClaim:
+            claimName: vm-migration-disk
+EOF
+
+# === 啟動 VM ===
+virtctl start migratable-vm
+kubectl get vmi migratable-vm -w   # 等待 Running
+
+# === 查看 VM 在哪個 Node ===
+kubectl get vmi migratable-vm -o jsonpath='{.status.nodeName}'
+
+# === 觸發 Live Migration ===
+kubectl apply -f - <<'EOF'
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstanceMigration
+metadata:
+  name: test-migration
+spec:
+  vmiName: migratable-vm
+EOF
+
+# === 監控 Migration 進度 ===
+kubectl get vmim test-migration -w
+# 或
+kubectl describe vmim test-migration
+
+# === 確認 VM 搬到不同 Node ===
+kubectl get vmi migratable-vm -o jsonpath='{.status.nodeName}'
+# 應該和之前的 Node 不同
+
+# === 用 virtctl 觸發（更簡單）===
+virtctl migrate migratable-vm
+
+# 取消 Migration
+virtctl migrate-cancel migratable-vm
+
+# === 模擬 Node 維護 ===
+NODE=$(kubectl get vmi migratable-vm -o jsonpath='{.status.nodeName}')
+kubectl cordon $NODE   # 標記 Node 不再接收新 Pod
+# KubeVirt 會自動把這個 Node 上的 VM Live Migrate 走
+
+# 完成維護後
+kubectl uncordon $NODE
+
+# === 清理 ===
+kubectl delete vm migratable-vm
+kubectl delete pvc vm-migration-disk
+kubectl delete vmim test-migration 2>/dev/null || true
+```

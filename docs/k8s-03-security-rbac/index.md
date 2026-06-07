@@ -368,3 +368,132 @@ spec:
 
 !!! info "RBAC 是 additive（疊加）"
     k8s RBAC 沒有 deny 規則，只有 allow。預設是「拒絕所有」，每條 rule 是在疊加允許清單。無法用 RBAC 來撤銷已有的權限（只能移除 binding）。
+
+---
+
+## 隨堂測驗 {#quiz}
+
+::: details 測驗 1：Role 和 ClusterRole 的差別？什麼時候用 ClusterRole + RoleBinding？
+**答案：**
+
+| | Role | ClusterRole |
+|--|------|------------|
+| 適用範圍 | 單一 Namespace | 整個 Cluster |
+| 綁定方式 | RoleBinding（僅該 Namespace） | ClusterRoleBinding（全 Cluster）或 RoleBinding（限定 Namespace）|
+
+**ClusterRole + RoleBinding 的用途：**
+
+一個常見且有用的組合：把 `ClusterRole` 用 `RoleBinding` 綁到特定 Namespace。
+- 好處：`ClusterRole` 可以被多個 Namespace 的 `RoleBinding` 重用
+- 例如：定義一個 `pod-reader` ClusterRole，然後在不同 Namespace 分別 RoleBinding 給不同用戶
+
+若改成 ClusterRoleBinding，那個用戶就能讀**所有** Namespace 的 Pod，權限過大。
+:::
+
+::: details 測驗 2：ServiceAccount 的用途是什麼？Pod 裡的 app 怎麼存取 k8s API？
+**答案：**
+
+ServiceAccount 是給**程式（Pod）**用的身份，不是給人用的（人用 User 或 Group）。
+
+k8s 自動：
+1. 幫每個 Namespace 建一個 `default` ServiceAccount
+2. 把 ServiceAccount Token 掛進 Pod（`/var/run/secrets/kubernetes.io/serviceaccount/token`）
+3. Pod 裡的程式用這個 Token 向 API Server 認證
+
+**典型使用場景：**
+- Controller/Operator（需要 Watch、建立 k8s 資源）
+- Prometheus（需要讀 Pod metrics）
+- ArgoCD（需要讀 Git、apply 資源）
+
+**安全最佳實踐：**
+- 不要直接用 `default` ServiceAccount（預設沒有什麼權限，但萬一被賦予權限就很危險）
+- 為每個 app 建立獨立的 ServiceAccount，只賦予最小必要權限
+- 設定 `automountServiceAccountToken: false`（不需要 API 存取的 Pod）
+:::
+
+::: details 測驗 3：什麼是 Admission Controller？它和 RBAC 的執行順序？
+**答案：**
+
+請求進入 API Server 的完整流程：
+
+```
+1. Authentication（我是誰）
+2. Authorization / RBAC（我有什麼權限）
+3. Admission Control（這個操作合規嗎）
+   ├── Mutating Webhook（可以修改請求，如補預設值）
+   └── Validating Webhook（只能 approve/deny，不能修改）
+4. 寫入 etcd
+```
+
+**RBAC 在 Admission 前**：RBAC 先決定你有沒有權限做這個操作，Admission Controller 再決定這個操作是否符合額外的規則。
+
+常用 Admission Controller：
+- `LimitRanger`：自動補充 requests/limits 預設值
+- `ResourceQuota`：強制 Namespace 資源上限
+- `PodSecurity`：限制 Pod 的安全設定（取代舊的 PodSecurityPolicy）
+- `MutatingAdmissionWebhook` / `ValidatingAdmissionWebhook`：自訂 Webhook（KubeVirt、Istio 都用這個）
+:::
+
+---
+
+## 實作：RBAC 設定
+
+```bash
+# === 建立 ServiceAccount 和 RBAC ===
+kubectl create namespace dev
+
+# 建立 ServiceAccount
+kubectl -n dev create serviceaccount my-app
+
+# 建立 Role（只能讀 pod 和 logs）
+kubectl apply -f - <<'EOF'
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: dev
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+EOF
+
+# 綁定 ServiceAccount 和 Role
+kubectl -n dev create rolebinding my-app-pod-reader \
+  --role=pod-reader \
+  --serviceaccount=dev:my-app
+
+# === 測試權限 ===
+# 模擬 ServiceAccount 的 API 請求
+kubectl auth can-i list pods -n dev --as=system:serviceaccount:dev:my-app
+# yes
+
+kubectl auth can-i delete pods -n dev --as=system:serviceaccount:dev:my-app
+# no
+
+# 跨 Namespace
+kubectl auth can-i list pods -n default --as=system:serviceaccount:dev:my-app
+# no（只有 dev namespace 的 binding）
+
+# === 查看現有 RBAC ===
+kubectl get roles,rolebindings -n dev
+kubectl get clusterroles,clusterrolebindings | grep -v system:
+
+# 查看某個 ServiceAccount 有哪些權限
+kubectl auth can-i --list --as=system:serviceaccount:dev:my-app -n dev
+
+# === 測試 Secret 存取（Audit）===
+# 確認 etcd 加密（production 必做）
+kubectl -n kube-system get cm kubeadm-config -o yaml | grep encryption
+
+# === PSA（Pod Security Admission）===
+# 設定 Namespace 安全等級
+kubectl label namespace dev pod-security.kubernetes.io/enforce=restricted
+kubectl label namespace dev pod-security.kubernetes.io/warn=restricted
+
+# 確認：不符合 restricted 的 Pod 會被拒絕
+kubectl -n dev run test --image=nginx    # 應該被拒絕（需要 non-root）
+
+# 重設（允許）
+kubectl label namespace dev pod-security.kubernetes.io/enforce-
+```
