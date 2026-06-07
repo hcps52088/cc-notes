@@ -205,6 +205,25 @@ metadata:
 
 ---
 
+## 常用 Helm 指令速查
+
+| 指令 | 說明 |
+|------|------|
+| `helm repo add <name> <url>` | 新增 Chart repository |
+| `helm repo update` | 更新 repo 快取 |
+| `helm search repo <keyword>` | 搜尋 repo 裡的 Chart |
+| `helm install <release> <chart>` | 安裝 Chart |
+| `helm upgrade <release> <chart>` | 升級已安裝的 Release |
+| `helm upgrade --install` | 不存在就 install，存在就 upgrade |
+| `helm template <release> <chart>` | 預覽渲染結果（不實際安裝） |
+| `helm list` | 列出所有 Release |
+| `helm history <release>` | 查看 Release 的版本歷史 |
+| `helm rollback <release> <revision>` | 回滾到指定版本 |
+| `helm uninstall <release>` | 刪除 Release |
+| `helm lint <chart>` | 檢查 Chart 格式是否正確 |
+
+---
+
 ## GitOps 是什麼？
 
 傳統部署：
@@ -227,6 +246,20 @@ GitOps：
 4. **持續調和**：operator 持續確保 cluster 狀態 = Git 狀態
 
 ---
+
+## GitOps 工具比較
+
+| | ArgoCD | Flux v2 |
+|--|--------|---------|
+| **架構** | 單一 operator + Web UI | 多個 controller 組合 |
+| **Web UI** | ✅ 內建，功能豐富 | ❌（需另裝） |
+| **多 Cluster** | ✅（ArgoCD 管多個 cluster） | ✅（各自跑 Flux） |
+| **Pull 模型** | ✅ | ✅ |
+| **支援格式** | Helm / Kustomize / plain YAML / Jsonnet | Helm / Kustomize / plain YAML |
+| **設定方式** | Application CR | GitRepository + Kustomization CR |
+| **通知** | 透過 notifications controller | 透過 notification provider |
+| **CNCF** | ✅ Graduated | ✅ Graduated |
+| **適合場景** | 需要 UI 管理、多 cluster | GitOps 原教旨主義、輕量部署 |
 
 ## ArgoCD
 

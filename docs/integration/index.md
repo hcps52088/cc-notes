@@ -142,6 +142,29 @@ spec:
 
 ## 整合部署順序
 
+### 各層次責任分工
+
+| 層次 | 負責元件 | 職責 |
+|------|---------|------|
+| **基礎設施** | k8s Control Plane + Worker Node | Pod 調度、Service、RBAC |
+| **網路** | CNI（Calico/Cilium）+ Multus | Pod 間通訊、VM 多網路 |
+| **儲存** | Rook Operator + Ceph Cluster | 分散式儲存、PVC 動態申請 |
+| **CSI Driver** | csi-rbdplugin / csi-cephfsplugin | 讓 k8s PVC ↔ Ceph RBD/CephFS |
+| **VM 執行** | KubeVirt（virt-api/controller/handler）| VM 生命週期管理 |
+| **VM 磁碟匯入** | CDI（Containerized Data Importer） | OS image 自動匯入到 PVC |
+
+### 依賴關係
+
+```
+k8s Cluster
+    └── CNI（網路基礎）
+    └── Rook → Ceph（儲存）
+                  └── StorageClass（讓 KubeVirt 動態申請 PVC）
+    └── KubeVirt（VM 執行）
+                  └── CDI（VM 磁碟 import）
+                  └── Ceph PVC（VM 磁碟儲存）
+```
+
 ```
 1. 安裝 k8s cluster
         ↓

@@ -1,5 +1,20 @@
 # Rook 儲存設定完全指南
 
+## 三種儲存類型完整比較
+
+| | Block（RBD） | File（CephFS） | Object（S3） |
+|--|------------|--------------|-------------|
+| **Rook CRD** | CephBlockPool | CephFilesystem | CephObjectStore |
+| **StorageClass** | rook-ceph.rbd.csi.ceph.com | rook-ceph.cephfs.csi.ceph.com | rook-ceph.ceph.rook.io/bucket（OBC） |
+| **k8s 資源** | PVC | PVC | ObjectBucketClaim |
+| **Access Mode** | RWO（預設）/ RWX（需 rbd-nbd） | RWO / RWX（天生支援） | N/A（HTTP 存取） |
+| **volumeMode** | Block（VM 用）/ Filesystem | Filesystem | N/A |
+| **快照支援** | ✅ VolumeSnapshot（csi-rbdplugin-snapclass） | ✅ VolumeSnapshot（csi-cephfsplugin-snapclass） | ✅ Object Versioning |
+| **線上擴容** | ✅ allowVolumeExpansion | ✅ allowVolumeExpansion | N/A |
+| **適合 KubeVirt VM** | ✅ 首選 | ⚠️ 可用，效能差 | ❌ |
+| **多 Pod 共用** | ❌（RWO 限制）/ ✅（RWX） | ✅ | ✅（HTTP 方式） |
+| **需要的 Ceph daemon** | MON/OSD/MGR | MON/OSD/MGR + MDS | MON/OSD/MGR + RGW |
+
 ## 三種儲存類型的設定路徑
 
 ```
@@ -453,6 +468,17 @@ kubectl get secret my-app-bucket -o yaml
 ---
 
 ## Volume Snapshot（快照）
+
+### Snapshot vs Clone vs Backup 比較
+
+| | VolumeSnapshot | PVC Clone | 外部備份（Velero） |
+|--|---------------|-----------|-----------------|
+| **原理** | Ceph RBD/CephFS 快照 | RBD Copy-on-Write 複製 | 資料導出到 Object Storage |
+| **建立速度** | 瞬間（COW） | 瞬間（COW） | 慢（需要傳輸資料） |
+| **儲存佔用** | 小（只記錄差異） | 初始很小（COW） | 完整副本 |
+| **跨 Cluster 還原** | ❌（Ceph 快照不能跨 cluster） | ❌ | ✅ |
+| **適合場景** | 升級前備份、快速還原 | 快速建多個測試 VM | 災難還原、跨 cluster 搬移 |
+| **k8s 資源** | VolumeSnapshot | PVC（dataSource: PVC） | Backup CR |
 
 Snapshot 讓你在某個時間點「凍結」PVC 狀態，之後可以還原或從快照建立新 PVC。
 

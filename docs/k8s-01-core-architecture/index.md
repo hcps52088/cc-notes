@@ -133,6 +133,17 @@ Watch 現狀  →  比對期望狀態  →  採取行動
 - 大型 cluster 改用 **IPVS** 模式（效能更好，規則數量不影響效能）
 - kube-proxy 不處理 Pod-to-Pod 的直接通訊（那是 CNI 的責任）
 
+### kube-proxy 模式比較
+
+| | iptables | IPVS | eBPF（Cilium 取代 kube-proxy）|
+|--|---------|------|------------------------------|
+| **實作** | Netfilter iptables 規則 | Linux IPVS（LVS） | eBPF 程式直接在 kernel 運作 |
+| **Service 數量規模** | 小到中型（規則線性增長） | 大型（Hash table，O(1)） | 大型（Hash table，O(1)） |
+| **負載均衡算法** | Round-robin（隨機） | RR / LC / SH / DH 等多種 | 自訂 |
+| **Connection tracking** | conntrack | conntrack | 可繞過 conntrack |
+| **效能（大規模）** | 差 | 好 | 最好 |
+| **需要額外安裝** | ❌（預設） | 需要 ipvs kernel module | 需要安裝 Cilium |
+
 ---
 
 ## 最重要的設計思路：Reconciliation Loop
@@ -305,6 +316,17 @@ stringData:            # 用 stringData 自動 base64
 
 !!! warning "Secret 只是 base64，不是加密"
     `kubectl get secret -o yaml` 就能解碼。真正的機密管理要搭配 Sealed Secrets、HashiCorp Vault、或 AWS Secrets Manager。
+
+### 工作負載資源比較
+
+| 資源 | 管理對象 | 特性 | 適合場景 |
+|------|---------|------|---------|
+| **Pod** | 直接管理 | 最基本單位，無自愈 | 不直接用 |
+| **Deployment** | ReplicaSet → Pod | 滾動更新、無狀態 | Web 服務、API |
+| **StatefulSet** | Pod（有穩定 ID） | 穩定網路名稱、有序啟動/更新 | 資料庫、Kafka |
+| **DaemonSet** | 每個 Node 一個 Pod | 自動跟隨 Node 增減 | 監控 agent、CNI、CSI Node plugin |
+| **Job** | Pod（一次性） | 執行完成即結束 | 資料遷移、批次處理 |
+| **CronJob** | Job | 按排程建立 Job | 定時備份、定時清理 |
 
 ### Deployment
 

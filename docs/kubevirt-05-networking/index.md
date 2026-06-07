@@ -22,6 +22,20 @@ virt-launcher Pod
 
 ---
 
+## Interface Binding 比較
+
+| | masquerade | bridge | SR-IOV | passt |
+|--|-----------|--------|--------|-------|
+| **原理** | NAT（SNAT 成 Pod IP） | Linux Bridge L2 直連 | 硬體 VF 直通 | User-space 網路代理 |
+| **VM 的 IP** | 獨立 IP（10.0.2.x），透過 NAT 出 | 直接使用 Pod IP | VF 上的獨立 IP | 獨立 IP，透過 passt 出 |
+| **效能** | 中（NAT 開銷） | 中高 | 最高（接近裸機） | 中 |
+| **Live Migration** | ✅ | ❌ | ✅（v1.8+ hot-unplug） | ✅ |
+| **Service Mesh 相容** | ❌ | ❌ | N/A | ✅ |
+| **需要 root/CAP** | CAP_NET_ADMIN | CAP_NET_ADMIN | 需要 SR-IOV 支援 | ❌（最低權限） |
+| **硬體需求** | 無 | 無 | 網卡需支援 SR-IOV | 無 |
+| **適用場景** | 大多數場景（推薦） | 需要 L2 直連 | 高效能、低延遲 | 安全強化環境 |
+| **成熟度** | GA | GA | GA | Beta（v1.8+） |
+
 ## Interface Binding 類型
 
 ### 1. masquerade（最常用）
@@ -49,7 +63,7 @@ spec:
 **特性：**
 - VM 可以主動連外，外部要連進來需要透過 k8s Service
 - 支援 IPv4/IPv6 dual-stack
-- 相容 Service Mesh（Istio 等）
+- **不相容 Service Mesh**（Istio/Linkerd 的 sidecar 注入機制與 masquerade NAT 有衝突）
 - **推薦用於大多數場景**
 
 ### 2. bridge（L2 直連）
@@ -169,6 +183,16 @@ spec:
 
 ## 讓外部連進 VM
 
+### 外部存取方式比較
+
+| 方法 | 適用場景 | 優點 | 缺點 |
+|------|---------|------|------|
+| **k8s Service（ClusterIP + Ingress）** | HTTP/HTTPS 服務 | Migration 後 IP 不變、L7 路由 | 需要 Ingress Controller |
+| **k8s Service（LoadBalancer）** | 需要固定公開 IP | 自動申請雲端 LB | 雲端環境限定，費用高 |
+| **k8s Service（NodePort）** | 開發測試 | 簡單快速 | Port 範圍受限（30000-32767） |
+| **virtctl port-forward** | 臨時 debug | 不需要建 Service | 只有發起端可用 |
+| **virtctl ssh** | SSH 管理 | 不需要 Service，走 API tunnel | 每次要有 virtctl |
+
 ### 方法一：k8s Service（推薦）
 
 ```yaml
@@ -261,7 +285,7 @@ devices:
 | VM 的 IP | 獨立 IP（10.0.2.2/24），透過 NAT 出去 | 使用 Pod IP（DHCP 獲得）|
 | 外部存取 | 必須透過 k8s Service | 可以直接用 VM IP（在 cluster 內） |
 | Live Migration | 支援 | **不支援**（預設） |
-| Service Mesh 相容 | 支援（Istio、Linkerd） | **不相容** |
+| Service Mesh 相容 | **不相容** | **不相容** |
 | 推薦場景 | 大多數情況 | 需要 L2 直連的特殊需求 |
 
 **核心差異**：masquerade 的 VM 和 Pod 用不同的 IP，透過 NAT 連接；bridge 的 VM 直接「借」Pod IP，在 L2 層面直連。

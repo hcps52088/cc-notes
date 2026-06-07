@@ -6,7 +6,7 @@
 
 | 項目 | 最低需求 | 建議 |
 |------|---------|------|
-| Kubernetes 版本 | v1.28+ | 最新穩定版（Rook v1.17 支援 v1.28–v1.33） |
+| Kubernetes 版本 | v1.31–v1.36 | 最新穩定版（Rook v1.17 支援的範圍） |
 | 節點數 | 3（OSD 分散到不同 Host） | 3+ |
 | 每節點 CPU | 2 core | 4+ core |
 | 每節點記憶體 | 8 GiB | 16+ GiB |
@@ -60,6 +60,17 @@ kubectl -n rook-ceph rollout status deploy/rook-ceph-operator
 ```
 
 ### 步驟 3：建立 Ceph Cluster
+
+#### Cluster 類型比較
+
+| | cluster.yaml（裸機） | cluster-test.yaml（測試） | cluster-on-pvc.yaml（雲端） |
+|--|---------------------|--------------------------|---------------------------|
+| **適用環境** | 生產、有原始磁碟 | minikube / kind 本機測試 | AWS / GCP / Azure |
+| **OSD 來源** | Node 上的原始磁碟 | hostPath 目錄（模擬） | 雲端 PVC（EBS/PD） |
+| **節點需求** | 3 個 Node，各有裸磁碟 | 1 個 Node 也可以 | 3 個 Node |
+| **資料持久性** | ✅ 生產等級 | ❌ 節點刪除資料消失 | ✅ 跟雲端 PVC 一樣 |
+| **效能** | 最高（NVMe/SSD 直通） | 低（共用 OS 磁碟） | 中（取決於 PVC StorageClass） |
+| **CRUSH failureDomain** | host / rack / zone | host | host |
 
 選擇適合的 cluster 設定：
 

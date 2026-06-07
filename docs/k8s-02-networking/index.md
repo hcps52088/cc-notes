@@ -171,6 +171,9 @@ spec:
 
 Service 是 L4（TCP/UDP），只能做 Port-based routing。Ingress 是 L7（HTTP/HTTPS），可以做**基於路徑或 Host 的路由**，一個 LoadBalancer 服務多個應用。
 
+!!! info "Ingress API 已凍結"
+    Kubernetes 官方已宣布 Ingress API 凍結（不再新增功能），建議新專案改用 **Gateway API**（`gateway.networking.k8s.io`）。Ingress 本身仍 GA 穩定維護，不會移除。
+
 ```
 外部請求
     │
@@ -190,12 +193,14 @@ Ingress Controller（實際跑在 cluster 裡的 Pod，處理流量）
 
 ### 常見 Ingress Controller
 
-| Controller | 特點 |
-|------------|------|
-| **nginx** | 最普遍，功能豐富 |
-| **traefik** | 自動發現、有 UI，適合動態環境 |
-| **AWS ALB Controller** | 原生整合 AWS ALB，支援 WAF |
-| **Istio Gateway** | Service Mesh 場景 |
+| Controller | 實作 | 特點 | 適合場景 |
+|------------|------|------|---------|
+| **nginx** | Nginx | 最普遍、功能豐富、穩定 | 大多數場景首選 |
+| **traefik** | Traefik | 自動服務發現、有 Dashboard | 動態環境、微服務 |
+| **AWS ALB Controller** | AWS Application LB | 原生 AWS 整合、支援 WAF/Shield | AWS 環境 |
+| **GCP GKE Ingress** | GCP HTTP(S) LB | GKE 原生、自動管理憑證 | GKE 環境 |
+| **Istio Gateway** | Envoy | 流量管理、mTLS、可觀測性 | Service Mesh 場景 |
+| **HAProxy** | HAProxy | 極高效能、細粒度設定 | 高流量、金融場景 |
 
 ### 範例：路徑 + Host 路由
 
@@ -386,6 +391,16 @@ spec:
 ```
 
 ---
+
+## NetworkPolicy 規則速查
+
+| 場景 | podSelector | namespaceSelector | ipBlock |
+|------|-------------|-------------------|---------|
+| 允許同 namespace 所有 Pod | `{}` | 不填 | 不填 |
+| 允許特定 label 的 Pod | `matchLabels: {app: web}` | 不填 | 不填 |
+| 允許特定 namespace | 不填 | `matchLabels: {name: frontend}` | 不填 |
+| 允許外部 IP 範圍 | 不填 | 不填 | `cidr: 203.0.113.0/24` |
+| 阻擋所有 | `{}` policyType Ingress（不加 from 欄位） | - | - |
 
 ## eBPF 與 Cilium（進階）
 

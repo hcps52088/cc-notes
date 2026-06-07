@@ -225,6 +225,16 @@ kubectl logs -l kubevirt.io=virt-launcher
 
 ## InstanceType 與 Preference
 
+### InstanceType vs Preference 比較
+
+| | VirtualMachineInstancetype | VirtualMachinePreference |
+|--|---------------------------|--------------------------|
+| **用途** | 強制定義資源規格（CPU/Memory） | 預設的設備偏好（可被覆蓋） |
+| **VM 能覆蓋？** | ❌ 不能覆蓋 | ✅ VM spec 可以覆蓋 |
+| **適合由誰設定** | 管理員（標準化規格） | 管理員（設定 Guest OS 最佳設定） |
+| **Cluster-wide 版本** | VirtualMachineClusterInstancetype | VirtualMachineClusterPreference |
+| **官方預設套件** | common-instancetypes（u1.micro 到 u1.2xlarge） | common-instancetypes（fedora、windows 等） |
+
 類似 AWS 的 EC2 Instance Type，讓管理員預先定義好資源規格，使用者直接引用，不用每次手寫。
 
 ### VirtualMachineInstancetype（強制規格）

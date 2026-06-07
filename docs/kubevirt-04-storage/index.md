@@ -96,7 +96,24 @@ mount -t virtiofs shared-data /mnt/data
 
 ---
 
-## Volume 來源（10 種）
+## Volume 來源（12 種）
+
+### 常見 Volume 來源比較
+
+| Volume 來源 | 資料持久性 | 需要 CDI | 典型用途 |
+|------------|---------|---------|---------|
+| `containerDisk` | ❌（VMI 刪掉就沒了） | ❌ | 快速測試、無狀態 VM |
+| `persistentVolumeClaim` | ✅ | ❌ | 生產 VM 磁碟（事先準備好 PVC） |
+| `dataVolume` | ✅ | ✅ | 生產 VM 磁碟（自動 import OS image） |
+| `ephemeral` | ❌（停機就消失） | ❌ | COW 暫時磁碟，以 PVC 為 backing |
+| `cloudInitNoCloud` | 僅初始化用 | ❌ | cloud-init 設定（密碼、SSH key）|
+| `cloudInitConfigDrive` | 僅初始化用 | ❌ | OpenStack 格式 cloud-init |
+| `hostDisk` | ✅（存在 Node hostPath） | ❌ | 測試、單節點場景（無法 Migration） |
+| `configMap` | 依 ConfigMap | ❌ | 注入設定檔到 VM |
+| `secret` | 依 Secret | ❌ | 注入憑證、金鑰 |
+| `serviceAccount` | 依 SA token | ❌ | VM 存取 k8s API |
+| `emptyDisk` | ❌（VMI 刪掉就沒了） | ❌ | 臨時暫存空間（sparse qcow2） |
+| `downwardMetrics` | N/A | ❌ | 暴露 VM 和 Host 的 metrics 給 Guest OS |
 
 ### 1. containerDisk（最適合測試）
 
@@ -146,6 +163,18 @@ spec:
 ```
 
 ### 3. dataVolume（推薦：自動 import）
+
+#### DataVolume 來源比較
+
+| 來源 | 設定欄位 | 說明 | 需要 CDI |
+|------|---------|------|---------|
+| HTTP URL | `source.http.url` | 從公開 URL 下載 qcow2/raw | ✅ |
+| Container Registry | `source.registry.url` | 從 OCI image 取出 disk | ✅ |
+| 現有 PVC 複製 | `source.pvc` | Clone 現有 PVC 的資料 | ✅ |
+| 空白磁碟 | `source.blank` | 建立空的 PVC | ✅ |
+| 上傳 | `source.upload` | 用 `virtctl image-upload` 上傳 | ✅ |
+| S3 | `source.s3` | 從 S3 bucket 下載 | ✅ |
+| GCS | `source.gcs` | 從 Google Cloud Storage 下載 | ✅ |
 
 DataVolume 是 CDI 提供的功能，自動幫你建立 PVC 並從外部來源 import disk image：
 

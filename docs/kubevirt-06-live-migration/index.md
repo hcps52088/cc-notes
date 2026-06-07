@@ -42,6 +42,18 @@ kubectl get kubevirt kubevirt -n kubevirt -o jsonpath='{.spec.configuration.deve
 
 ## 三種遷移策略
 
+### 策略比較
+
+| | Pre-copy（預設） | Post-copy | Auto-converge |
+|--|----------------|-----------|---------------|
+| **切換時機** | 記憶體全數同步後切換 | 立刻切換，按需拉資料 | 跟 Pre-copy 相同 |
+| **切換時間** | 可能較長（等同步完） | 極短（立刻切換） | 可能較長 |
+| **風險** | 低，失敗可繼續在來源跑 | 高，目標故障會 VM crash | 中，CPU 被限速 |
+| **高 dirty rate** | 可能無法收斂 | 不受影響 | 自動降 CPU 速讓收斂 |
+| **VM 效能影響** | 輕微（記憶體複製消耗網路） | 存取缺頁有延遲 | 明顯（CPU 被限速） |
+| **適用場景** | 大多數場景（推薦） | 切換時間嚴格要求 | 記憶體密集型工作負載 |
+| **設定方式** | 預設 | `allowPostCopy: true` | `allowAutoConverge: true` |
+
 ### Pre-copy（預設，推薦）
 
 ```
@@ -197,6 +209,15 @@ spec:
 ```
 
 ---
+
+## 觸發方式比較
+
+| 觸發方式 | 適用場景 | 指定目標 Node | 批次處理 |
+|---------|---------|-------------|---------|
+| `VirtualMachineInstanceMigration` CR | 精確控制單個 VM | ❌（由 Scheduler 決定） | ❌ |
+| `virtctl migrate <vmi>` | 快速手動觸發 | ❌ | ❌ |
+| `kubectl drain <node>` | Node 維護，全部搬走 | ❌ | ✅（Node 上全部 VM） |
+| `MigrationPolicy` | 自動化規則 | ❌ | ✅（符合 label 的） |
 
 ## 監控 Migration 狀態
 

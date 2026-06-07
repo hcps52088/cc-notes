@@ -371,6 +371,16 @@ kubectl -n rook-ceph get pod -l app=rook-ceph-rgw
 
 ---
 
+## 各元件部署方式比較
+
+| 元件 | 部署類型 | 數量 | 高可用機制 | 無此元件的影響 |
+|------|---------|------|-----------|------------|
+| **MON** | 靜態 Pod | 奇數（3/5） | Paxos 選主 | Cluster 無法運作 |
+| **OSD** | 每磁碟一個 Pod | N（磁碟數量） | CRUSH 副本分散 | 部分資料降級，超閾值不可用 |
+| **MGR** | Deployment | 2（Active+Standby） | Active/Standby 自動切換 | 監控停止，Dashboard 不可用 |
+| **MDS** | Deployment | 至少 1（可多個） | Active+Standby | CephFS 不可用（RBD/RGW 不受影響） |
+| **RGW** | Deployment | 1+（可多個） | 多實例 + LB | Object Storage 不可用 |
+
 ## 各元件資源消耗參考
 
 | 元件 | CPU | 記憶體 | 磁碟 |

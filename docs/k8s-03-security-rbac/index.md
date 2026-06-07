@@ -250,6 +250,20 @@ spec:
 
 ---
 
+## Admission Controller 比較
+
+| | OPA/Gatekeeper | Kyverno | Pod Security Admission |
+|--|---------------|---------|----------------------|
+| **語言** | Rego | YAML | 內建，無需 YAML |
+| **學習曲線** | 高（Rego 語法獨特） | 低（直接寫 YAML 規則） | 無（直接加 label） |
+| **靈活性** | 最高 | 高 | 低（只有 3 個等級） |
+| **Mutating** | ✅ | ✅ | ❌ |
+| **Validating** | ✅ | ✅ | ✅ |
+| **生成資源** | ❌ | ✅（ClusterPolicy generate） | ❌ |
+| **適合場景** | 複雜自訂規則 | 多數中型企業 | 快速加基礎安全 |
+
+---
+
 ## Secrets 管理
 
 ### 基本使用

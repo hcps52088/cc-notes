@@ -12,6 +12,34 @@
 | k8s 版本 | 最近三個穩定版（目前 v1.31+） |
 | API Server 設定 | `--allow-privileged=true` |
 
+### 安裝元件對照
+
+| 元件 | 是否必裝 | 說明 |
+|------|---------|------|
+| **KubeVirt Operator** | ✅ 必裝 | 管理 KubeVirt 本身的生命週期 |
+| **KubeVirt CR** | ✅ 必裝 | 宣告要什麼功能和版本 |
+| **virtctl** | ✅ 強烈建議 | VM console/vnc/migrate 等操作 |
+| **CDI（Containerized Data Importer）** | 生產必裝 | DataVolume 自動 import OS image |
+| **Multus** | 選裝 | VM 需要多個網路介面時 |
+| **SR-IOV Device Plugin** | 選裝 | 需要 SR-IOV 高效能網路時 |
+
+### KubeVirt Feature Gates 說明
+
+Feature Gate 的完整清單和預設狀態隨版本演進，最準確的資訊請查閱[官方原始碼](https://github.com/kubevirt/kubevirt/blob/main/pkg/virt-config/featuregate/active.go)。以下為常用的 gate（皆需手動啟用，除非另有說明）：
+
+| Feature Gate | 成熟度 | 說明 |
+|-------------|--------|------|
+| `SnapshotGate` | Beta | 啟用 VM Snapshot |
+| `HostDiskGate` | Alpha | 啟用 hostDisk volume（使用 Node 本地路徑）|
+| `VSOCKGate` | Alpha | 啟用 VM-Host VSOCK 通訊 |
+| `PasstBinding` | Beta | 啟用 passt user-space 網路 binding |
+| `DeclarativeHotplugVolumesGate` | Beta | 宣告式熱插拔 volume |
+| `DownwardMetricsFeatureGate` | Alpha | 暴露 Host metrics 給 Guest OS |
+| `SidecarGate` | Alpha | 啟用 virt-launcher sidecar hook |
+| `KubevirtSeccompProfile` | Beta | 啟用 KubeVirt 的 seccomp profile |
+
+> v1.8+ 可用 `spec.configuration.developerConfiguration.disabledFeatureGates` 明確停用某些預設啟用的 Beta feature。
+
 ### 確認 Node 支援硬體虛擬化
 
 ```bash
@@ -162,6 +190,23 @@ kubectl -n cdi wait cdi cdi --for condition=Available --timeout=10m
 ---
 
 ## 常用 virtctl 指令
+
+### virtctl 指令速查表
+
+| 指令 | 說明 | 備註 |
+|------|------|------|
+| `virtctl start <vm>` | 啟動 VM | 設定 runStrategy 為 Always |
+| `virtctl stop <vm>` | 停止 VM | 發送 ACPI 關機訊號 |
+| `virtctl restart <vm>` | 重啟 VM | stop + start |
+| `virtctl pause <vm>` | 暫停（freeze 記憶體） | VM 狀態保留在記憶體 |
+| `virtctl unpause <vm>` | 繼續執行 | |
+| `virtctl console <vm>` | 串口 console（文字） | Ctrl+] 離開 |
+| `virtctl vnc <vm>` | VNC 圖形介面 | 需要 VNC client |
+| `virtctl ssh <user>@<vm>` | SSH tunnel 連線 | 不需要 VM 有 public IP |
+| `virtctl migrate <vm>` | 觸發 Live Migration | 需要 RWX PVC |
+| `virtctl addvolume <vm>` | 熱插拔掛入 volume | |
+| `virtctl removevolume <vm>` | 熱插拔移除 volume | |
+| `virtctl image-upload` | 上傳 disk image 到 PVC | 需要 CDI |
 
 ```bash
 # VM 基本操作

@@ -1,5 +1,22 @@
 # Ceph 三種儲存類型
 
+## 三種儲存類型比較
+
+| | RBD（Block） | CephFS（File） | RGW（Object） |
+|--|-------------|---------------|--------------|
+| **介面** | Block device（/dev/rbdX） | POSIX 檔案系統（mount） | HTTP REST（S3/Swift） |
+| **Access Mode** | RWO（預設）/ RWX（需特殊設定） | RWX 原生支援 | 無 PVC，直接 HTTP |
+| **存取語意** | raw block，自己管格式化 | open/read/write/ls | PUT/GET/DELETE Object |
+| **效能** | 最高（直接 block I/O） | 中（有 MDS 開銷） | 中（HTTP 開銷） |
+| **KubeVirt VM 磁碟** | ✅ 首選 | ⚠️ 可用但效能差 | ❌ 不適合 |
+| **多 Pod 共用目錄** | ❌ | ✅ 首選 | ❌ |
+| **Live Migration** | ✅（需 RWX Pool） | ✅ | N/A |
+| **容量上限** | Pool 大小 | Pool 大小 | 幾乎無上限 |
+| **快照支援** | ✅（VolumeSnapshot） | ✅（VolumeSnapshot） | ✅（Object Versioning） |
+| **典型用途** | VM 磁碟、Database | 共享目錄、NAS | 備份、圖片、靜態資源 |
+| **k8s 資源** | PVC（Block mode） | PVC（Filesystem mode） | ObjectBucketClaim |
+| **Rook CRD** | CephBlockPool + StorageClass | CephFilesystem + StorageClass | CephObjectStore + User |
+
 ## 選擇指南
 
 ```
