@@ -34,6 +34,7 @@ export default defineConfig({
         items: [
           { text: '架構概覽', link: '/rook-01-overview/' },
           { text: '安裝與設定', link: '/rook-02-installation/' },
+          { text: 'Storage 設定', link: '/rook-03-storage/' },
         ]
       },
       {
@@ -81,6 +82,7 @@ export default defineConfig({
         items: [
           { text: '架構概覽', link: '/rook-01-overview/' },
           { text: '安裝與設定', link: '/rook-02-installation/' },
+          { text: 'Storage 設定', link: '/rook-03-storage/' },
         ]
       },
       {
