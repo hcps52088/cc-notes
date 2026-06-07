@@ -1,0 +1,248 @@
+# 第六章：Live Migration
+
+## 什麼是 Live Migration
+
+Live Migration 讓正在執行的 VM 在**不停機**的情況下，從一個 Node 搬到另一個 Node。對 Guest OS 和連進去的使用者來說，幾乎感覺不到任何中斷。
+
+**典型使用場景：**
+- Node 要做維護（`kubectl drain`）
+- 負載重新平衡
+- 升級 Hypervisor（Host OS / QEMU 版本）
+
+```
+來源 Node                    目標 Node
+┌─────────────────┐         ┌─────────────────┐
+│ virt-launcher   │         │ virt-launcher   │
+│ (VM 在跑)       │ ──記憶體傳輸──▶ (VM 準備接管)  │
+│                 │         │                 │
+└─────────────────┘         └─────────────────┘
+        │                           │
+        └─── 傳輸完成 → 切換 ────────┘
+             （毫秒級切換）
+```
+
+---
+
+## 前提條件
+
+| 條件 | 說明 |
+|------|------|
+| PVC AccessMode | 必須是 `ReadWriteMany`（RWX），讓兩個 Node 同時存取 |
+| 網路介面 | 不能用 bridge 模式的 Pod Network（masquerade 或 SR-IOV 可以） |
+| Port 開放 | virt-launcher Pod 需要開放 49152 和 49153 port |
+| 可遷移的 Node | cluster 至少要有 2 個可調度的 Node |
+| Feature Gate | 需要 `LiveMigration` feature gate 開啟 |
+
+```bash
+# 確認 Live Migration feature gate 是否開啟
+kubectl get kubevirt kubevirt -n kubevirt -o jsonpath='{.spec.configuration.developerConfiguration.featureGates}'
+```
+
+---
+
+## 三種遷移策略
+
+### Pre-copy（預設，推薦）
+
+```
+1. 目標 Node 啟動新的 virt-launcher
+2. 來源 Node 持續把記憶體 dirty page 傳給目標
+3. 記憶體同步完畢後，VM 在來源暫停（毫秒級）
+4. 剩餘 dirty page 傳輸完成
+5. VM 在目標恢復執行
+6. 來源的 virt-launcher 關閉
+```
+
+- **優點**：安全、快速，失敗可以直接在來源繼續
+- **缺點**：若 VM 記憶體寫入速度很高（高 dirty rate），可能遲遲無法收斂
+- **適用**：大多數情況
+
+### Post-copy
+
+```
+1. 目標 Node 啟動 VM（立刻切換執行）
+2. VM 在目標執行，所需頁面「按需」從來源傳輸
+3. 後台持續把所有記憶體搬完
+```
+
+- **優點**：切換速度快，不需等記憶體同步完
+- **缺點**：若目標 Node 故障，VM 資料可能損失；風險較高
+- **適用**：有嚴格切換時間限制的場景
+
+### Auto-converge
+
+```
+Migration 過程中若偵測到高 dirty rate，自動降低 VM 的 CPU 使用率
+→ 減少記憶體寫入速度 → 加速收斂
+```
+
+- **優點**：解決高 dirty rate 導致遷移無法完成的問題
+- **缺點**：會影響 VM 的效能（CPU 被限速）
+- **適用**：記憶體密集型工作負載
+
+---
+
+## 設定 Live Migration 參數
+
+在 KubeVirt CR 設定全域預設值：
+
+```yaml
+apiVersion: kubevirt.io/v1
+kind: KubeVirt
+metadata:
+  name: kubevirt
+  namespace: kubevirt
+spec:
+  configuration:
+    migrations:
+      # 整個 cluster 同時最多進行幾個 Migration
+      parallelMigrationsPerCluster: 5
+
+      # 每個 Node 同時最多幾個 outbound Migration
+      parallelOutboundMigrationsPerNode: 2
+
+      # 每個 Migration 的頻寬上限（0 = 無限制）
+      bandwidthPerMigration: "64Mi"
+
+      # 每 GiB 記憶體的最長遷移時間（秒）
+      completionTimeoutPerGiB: 800
+
+      # 多久沒有進度就放棄（秒）
+      progressTimeout: 150
+
+      # 是否允許 Post-copy
+      allowPostCopy: false
+
+      # 是否啟用 Auto-converge
+      allowAutoConverge: false
+
+      # 是否關閉 TLS 加密（不建議在生產環境）
+      disableTLS: false
+
+      # 來源和目標的主網路介面必須同名
+      # （預設 pod network 介面名稱）
+      network: ""
+```
+
+---
+
+## 觸發 Live Migration
+
+### 方法一：kubectl
+
+```yaml
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstanceMigration
+metadata:
+  name: my-migration
+  namespace: default
+spec:
+  vmiName: my-vmi      # 要遷移的 VMI 名稱
+```
+
+```bash
+kubectl apply -f migration.yaml
+
+# 查看遷移狀態
+kubectl get vmim my-migration
+kubectl describe vmim my-migration
+```
+
+### 方法二：virtctl
+
+```bash
+virtctl migrate my-vmi
+
+# 取消遷移
+virtctl migrate-cancel my-vmi
+```
+
+### 方法三：Node Drain（自動觸發）
+
+```bash
+# drain Node 時，KubeVirt 會自動把 VM live migrate 到其他 Node
+kubectl drain my-node --delete-emptydir-data --ignore-daemonsets
+
+# 確認所有 VM 都遷移完了再 drain
+kubectl get vmi --all-namespaces -o wide | grep my-node
+```
+
+---
+
+## Migration Policy（細粒度控制）
+
+MigrationPolicy 讓你針對特定 VM 群組套用不同的遷移設定：
+
+```yaml
+apiVersion: migrations.kubevirt.io/v1alpha1
+kind: MigrationPolicy
+metadata:
+  name: high-performance-vms
+spec:
+  selectors:
+    virtualMachineInstanceSelector:
+      matchLabels:
+        workload-type: high-performance    # 只套用到有這個 label 的 VMI
+
+    # 也可以套用到特定 namespace
+    namespaceSelector:
+      matchLabels:
+        env: production
+
+  # 覆蓋全域設定
+  allowAutoConverge: true          # 高效能 VM 允許 Auto-converge
+  bandwidthPerMigration: "256Mi"   # 給更多頻寬
+  completionTimeoutPerGiB: 400     # 縮短超時時間
+  allowPostCopy: false
+```
+
+---
+
+## 監控 Migration 狀態
+
+```bash
+# 查看所有進行中的 Migration
+kubectl get vmim --all-namespaces
+
+# 詳細狀態（包含記憶體傳輸進度）
+kubectl describe vmim my-migration
+
+# 從 VMI 狀態查看
+kubectl get vmi my-vmi -o jsonpath='{.status.migrationState}'
+
+# 查看相關 Events
+kubectl get events --field-selector reason=Migrating
+```
+
+VMI migration state 欄位：
+
+```json
+{
+  "migrationState": {
+    "startTimestamp": "2026-01-01T00:00:00Z",
+    "endTimestamp": "2026-01-01T00:01:00Z",
+    "sourceNode": "node-1",
+    "targetNode": "node-2",
+    "targetPod": "virt-launcher-my-vmi-xxx",
+    "completed": true,
+    "failed": false,
+    "migrationUid": "abc-123"
+  }
+}
+```
+
+---
+
+## 常見陷阱
+
+!!! warning "PVC 用 ReadWriteOnce 導致 Migration 失敗"
+    這是最常見的問題。RWO 的 PVC 同一時間只能被一個 Node 掛載。Migration 時需要來源和目標同時存取，所以必須用 RWX。若 StorageClass 不支援 RWX，需要更換（如 Ceph RBD → CephFS，或用 NFS）。
+
+!!! warning "高 dirty rate VM 遷移永遠無法收斂"
+    記憶體寫入速度超過網路頻寬時，migration 永遠追不上。解法：
+    1. 增加 `bandwidthPerMigration` 頻寬上限
+    2. 開啟 `allowAutoConverge: true` 自動限速 VM CPU
+    3. 選擇業務低峰期執行
+
+!!! info "Migration 不影響 Service 連線"
+    masquerade 模式的 VM 透過 k8s Service 存取，Migration 時 kube-proxy 規則更新指向新的 virt-launcher Pod，TCP 連線可能有短暫中斷（毫秒級），但新連線立刻可以建立。

@@ -1,18 +1,18 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'K8s 學習筆記',
-  description: 'Kubernetes 核心概念、Networking、Security & RBAC、Helm & GitOps',
+  title: 'K8s & KubeVirt 學習筆記',
+  description: 'Kubernetes 核心概念、Networking、Security & RBAC、Helm & GitOps，以及 KubeVirt 虛擬機管理',
   base: '/k8s-notes/',
   lang: 'zh-TW',
 
   themeConfig: {
-    siteTitle: 'K8s 學習筆記',
+    siteTitle: 'K8s & KubeVirt 學習筆記',
 
     nav: [
       { text: '首頁', link: '/' },
       {
-        text: '學習章節',
+        text: 'Kubernetes',
         items: [
           { text: '第一章 核心架構', link: '/01-core-architecture/' },
           { text: '第二章 Networking', link: '/02-networking/' },
@@ -20,42 +20,99 @@ export default defineConfig({
           { text: '第四章 Helm & GitOps', link: '/04-helm-gitops/' },
         ]
       },
+      {
+        text: 'KubeVirt',
+        items: [
+          { text: '第一章 架構原理', link: '/kubevirt-01-architecture/' },
+          { text: '第二章 安裝與設定', link: '/kubevirt-02-installation/' },
+          { text: '第三章 虛擬機管理', link: '/kubevirt-03-virtual-machines/' },
+          { text: '第四章 Storage', link: '/kubevirt-04-storage/' },
+          { text: '第五章 Networking', link: '/kubevirt-05-networking/' },
+          { text: '第六章 Live Migration', link: '/kubevirt-06-live-migration/' },
+        ]
+      },
       { text: 'GitHub', link: 'https://github.com/hcps52088/k8s-notes' },
     ],
 
     sidebar: [
       {
-        text: '開始學習',
+        text: '🐳 Kubernetes',
         items: [
-          { text: '首頁', link: '/' },
+          {
+            text: '第一章 核心架構',
+            collapsed: false,
+            items: [
+              { text: '架構概覽', link: '/01-core-architecture/' },
+            ]
+          },
+          {
+            text: '第二章 Networking',
+            collapsed: false,
+            items: [
+              { text: 'CNI、Service、Ingress', link: '/02-networking/' },
+            ]
+          },
+          {
+            text: '第三章 Security & RBAC',
+            collapsed: false,
+            items: [
+              { text: 'RBAC、Pod Security', link: '/03-security-rbac/' },
+            ]
+          },
+          {
+            text: '第四章 Helm & GitOps',
+            collapsed: false,
+            items: [
+              { text: 'Helm、ArgoCD、Flux', link: '/04-helm-gitops/' },
+            ]
+          },
         ]
       },
       {
-        text: '第一章 核心架構',
-        collapsed: false,
+        text: '⚡ KubeVirt',
         items: [
-          { text: '架構概覽', link: '/01-core-architecture/' },
-        ]
-      },
-      {
-        text: '第二章 Networking',
-        collapsed: false,
-        items: [
-          { text: 'CNI、Service、Ingress', link: '/02-networking/' },
-        ]
-      },
-      {
-        text: '第三章 Security & RBAC',
-        collapsed: false,
-        items: [
-          { text: 'RBAC、Pod Security', link: '/03-security-rbac/' },
-        ]
-      },
-      {
-        text: '第四章 Helm & GitOps',
-        collapsed: false,
-        items: [
-          { text: 'Helm、ArgoCD、Flux', link: '/04-helm-gitops/' },
+          {
+            text: '第一章 架構原理',
+            collapsed: false,
+            items: [
+              { text: '架構概覽', link: '/kubevirt-01-architecture/' },
+            ]
+          },
+          {
+            text: '第二章 安裝與設定',
+            collapsed: false,
+            items: [
+              { text: '安裝 KubeVirt', link: '/kubevirt-02-installation/' },
+            ]
+          },
+          {
+            text: '第三章 虛擬機管理',
+            collapsed: false,
+            items: [
+              { text: 'VM 與 VMI', link: '/kubevirt-03-virtual-machines/' },
+            ]
+          },
+          {
+            text: '第四章 Storage',
+            collapsed: false,
+            items: [
+              { text: 'Disk & Volume 類型', link: '/kubevirt-04-storage/' },
+            ]
+          },
+          {
+            text: '第五章 Networking',
+            collapsed: false,
+            items: [
+              { text: 'Interface & Network', link: '/kubevirt-05-networking/' },
+            ]
+          },
+          {
+            text: '第六章 Live Migration',
+            collapsed: false,
+            items: [
+              { text: 'Live Migration', link: '/kubevirt-06-live-migration/' },
+            ]
+          },
         ]
       },
     ],
@@ -69,7 +126,7 @@ export default defineConfig({
     ],
 
     footer: {
-      message: '基於 Kubernetes 官方文件整理',
+      message: '基於 Kubernetes 與 KubeVirt 官方文件整理',
       copyright: 'Copyright © 2026 hcps52088'
     },
 
